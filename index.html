@@ -1258,7 +1258,7 @@ const MARK_B64 = "iVBORw0KGgoAAAANSUhEUgAAAQkAAAC+CAYAAAAm0PodAAAZNklEQVR4nO3deX
    Paste your Google Apps Script Web App URL below between the quotes.
    See the setup instructions Claude gave you for how to get this URL. */
 const CONFIG = {
-  API_URL: "REPLACE_WITH_YOUR_APPS_SCRIPT_URL"
+  API_URL: "https://script.google.com/u/0/home/projects/1LDeie9wDamMfgZr4B4IaUERSXkjozMgTUL8-JQQ16az8YBSPn8MN-wPk/edit"
 };
 const BACKEND_READY = CONFIG.API_URL && CONFIG.API_URL.indexOf('REPLACE_WITH') !== 0;
 const REFRESH_INTERVAL_MS = 20000;
@@ -1455,7 +1455,7 @@ function logActivity(action, item, extra){
   addActivityEntry(action, item, extra);
   saveActivity();
 }
-const SHOP_ADDRESS = "Your shop address here, Phoenix, AZ"; // TODO: update to the real shop address
+const SHOP_ADDRESS = "5646 E Perdido Dr. Cave Creek, AZ"; // TODO: update to the real shop address
 function toggleTheme(){
   const isDark = document.documentElement.getAttribute('data-theme')==='dark';
   const next = isDark ? 'light' : 'dark';
