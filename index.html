@@ -566,7 +566,26 @@ nav.bottom .navbtn.scanbtn{color:var(--cyan-dark);}
   font-size:12px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.35);
 }
 .map-pin.has-overdue{background:var(--red);}
-.map-pin.is-shop{background:var(--cyan-dark);}
+/* GTA-style markers: neon on a dark base. */
+.map-pin{
+  background:#FFB300;color:#101010;border:2px solid #101010;
+  box-shadow:0 0 0 2px rgba(255,179,0,.35), 0 0 12px rgba(255,179,0,.7);
+  letter-spacing:.3px;
+}
+.map-pin.has-overdue{
+  background:#FF2D55;color:#fff;
+  box-shadow:0 0 0 2px rgba(255,45,85,.35), 0 0 14px rgba(255,45,85,.8);
+  animation:pinPulse 1.6s ease-in-out infinite;
+}
+@keyframes pinPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.12);}}
+.map-pin.is-shop{
+  background:#00E5FF;color:#04202A;font-size:14px;
+  box-shadow:0 0 0 3px rgba(0,229,255,.3), 0 0 18px rgba(0,229,255,.9);
+}
+.map-pin.is-me{
+  background:#FFFFFF;border:3px solid #00E5FF;
+  box-shadow:0 0 12px rgba(0,229,255,.9);
+}
 .map-pin.is-me{background:#2E7FD6;border-radius:50%;min-width:18px;height:18px;padding:0;}
 /* Leaflet popups render on their own white surface, so these use fixed
    colors rather than theme variables — dark mode must not make them
@@ -790,6 +809,10 @@ nav.bottom .navbtn.scanbtn{color:var(--cyan-dark);}
       <button class="map-btn" id="mapLocateBtn" onclick="mapLocateMe()">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
         My location
+      </button>
+      <button class="map-btn" onclick="mapGoHome()">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
+        Shop
       </button>
       <button class="map-btn" id="mapRefreshBtn" onclick="mapRefresh()">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><polyline points="21 3 21 9 15 9"/></svg>
@@ -1377,6 +1400,14 @@ nav.bottom .navbtn.scanbtn{color:var(--cyan-dark);}
     <input id="setShopAddress" placeholder="e.g. 5646 E Perdido Dr, Cave Creek, AZ">
     <div class="hint">Where equipment lives when it's not on a job. Shown on any item sitting at the shop, and it's the address the map will use for the shop pin.</div>
   </div>
+  <div class="field">
+    <label>Exact map position (optional)</label>
+    <div style="display:flex;gap:8px;">
+      <input id="setShopLat" placeholder="Latitude e.g. 33.5684" style="flex:1;">
+      <input id="setShopLon" placeholder="Longitude e.g. -112.0953" style="flex:1;">
+    </div>
+    <div class="hint">Leave blank to place the shop from its address. To pin it exactly: open Google Maps, right-click your yard, click the coordinates at the top of the menu to copy them, and paste them here. When these are filled in, the address is never looked up.</div>
+  </div>
   <div id="setSettingsWarning" class="hint" style="display:none;background:var(--red-bg);color:var(--red);font-weight:700;"></div>
   <div class="btn-row"><button class="btn btn-primary" onclick="confirmSaveSettings()">Save settings</button></div>
 
@@ -1641,6 +1672,8 @@ function shopAddress(){
 
 function openSettings(){
   document.getElementById('setShopAddress').value = shopAddress();
+  document.getElementById('setShopLat').value = appSettings.shopLat || '';
+  document.getElementById('setShopLon').value = appSettings.shopLon || '';
   const warn = document.getElementById('setSettingsWarning');
   if(!backendSupportsSettings){
     warn.style.display = 'block';
@@ -1655,6 +1688,13 @@ async function confirmSaveSettings(){
   const addr = document.getElementById('setShopAddress').value.trim();
   if(!addr){ showToast('Enter a shop address first'); return; }
   appSettings.shopAddress = addr;
+  const la = document.getElementById('setShopLat').value.trim();
+  const lo = document.getElementById('setShopLon').value.trim();
+  if((la && isNaN(parseFloat(la))) || (lo && isNaN(parseFloat(lo)))){
+    showToast('Latitude and longitude must be numbers'); return;
+  }
+  appSettings.shopLat = la;
+  appSettings.shopLon = lo;
   await saveSettings();
   closeModal('modalSettings');
   renderAll();
@@ -3460,8 +3500,11 @@ const MAP_CFG = {
   DEFAULT_ZOOM: 10,
   LEAFLET_CSS: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css',
   LEAFLET_JS:  'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
-  TILE_URL: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-  TILE_ATTR: '&copy; OpenStreetMap',
+  // Map styles. The app picks DARK when the app is in dark mode, LIGHT
+  // otherwise. Swap either URL to change the look — no other code changes.
+  TILE_DARK:  'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  TILE_LIGHT: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+  TILE_ATTR: '&copy; OpenStreetMap, &copy; CARTO',
   // Free address lookup. Fair-use is 1 request/second, so we wait 1.2s
   // between them. Results are cached in the Sheet and never looked up twice.
   GEOCODE_URL: 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=',
@@ -3471,10 +3514,20 @@ const MAP_CFG = {
 let geocache = {};                  // "normalized address" -> {lat,lon} or null
 let backendSupportsGeocache = true;
 let mapObj = null, mapMarkers = null, mapMeMarker = null;
-let mapLeafletPromise = null, mapGeocoding = false;
+let mapLeafletPromise = null, mapGeocoding = false, mapFirstOpen = true;
 let myPosition = null;              // {lat, lon} once the user allows it
 
 function mapNorm(a){ return (a||'').trim().toLowerCase().replace(/\s+/g,' '); }
+
+/* The shop's exact position. If shopLat/shopLon are set in the Settings tab
+   they are used directly and the address is never looked up — this is the
+   reliable way to pin the shop exactly where it really is. Otherwise the
+   shop address is geocoded like any other. */
+function shopPoint(){
+  const la = parseFloat(appSettings.shopLat), lo = parseFloat(appSettings.shopLon);
+  if(!isNaN(la) && !isNaN(lo)) return { lat: la, lon: lo };
+  return geocache[mapNorm(shopAddress())] || null;
+}
 
 function mapAddressFor(it){
   if(it.status === 'Jobsite') return clientAddresses[it.jobsite] || '';
@@ -3586,12 +3639,19 @@ async function renderMap(){
   canvas.classList.remove('map-failed');
 
   const groups = mapGroups();
-  await mapGeocodeMissing(groups.map(g=>g.address));
+  // Skip the shop's address if its coordinates are already pinned in Settings.
+  const needed = groups.filter(g=>!(g.isShop && shopPoint())).map(g=>g.address);
+  await mapGeocodeMissing(needed);
 
   if(!mapObj){
-    mapObj = L.map(canvas, { scrollWheelZoom:true }).setView(MAP_CFG.DEFAULT_CENTER, MAP_CFG.DEFAULT_ZOOM);
-    L.tileLayer(MAP_CFG.TILE_URL, { attribution:MAP_CFG.TILE_ATTR, maxZoom:19 }).addTo(mapObj);
+    const home = shopPoint();
+    const isDark = document.documentElement.getAttribute('data-theme')==='dark';
+    mapObj = L.map(canvas, { scrollWheelZoom:true })
+      .setView(home ? [home.lat, home.lon] : MAP_CFG.DEFAULT_CENTER, home ? 13 : MAP_CFG.DEFAULT_ZOOM);
+    L.tileLayer(isDark ? MAP_CFG.TILE_DARK : MAP_CFG.TILE_LIGHT,
+                { attribution:MAP_CFG.TILE_ATTR, maxZoom:20 }).addTo(mapObj);
     mapMarkers = L.layerGroup().addTo(mapObj);
+    mapFirstOpen = true;
   }
   mapMarkers.clearLayers();
 
@@ -3599,7 +3659,7 @@ async function renderMap(){
   let plotted = 0;
 
   groups.forEach(g=>{
-    const pt = geocache[mapNorm(g.address)];
+    const pt = g.isShop ? shopPoint() : geocache[mapNorm(g.address)];
     if(!pt){ unplotted.push(g); return; }
     plotted += g.items.length;
     const cls = 'map-pin' + (g.overdue?' has-overdue':'') + (g.isShop?' is-shop':'');
@@ -3629,7 +3689,12 @@ async function renderMap(){
     bounds.push([myPosition.lat,myPosition.lon]);
   }
 
-  if(bounds.length) mapObj.fitBounds(bounds,{padding:[40,40],maxZoom:15});
+  // Only auto-fit when there's more than the shop to show, and never let the
+  // "you are here" dot drag the view away from the yard.
+  if(mapFirstOpen && bounds.length>1){
+    mapObj.fitBounds(bounds,{padding:[40,40],maxZoom:15});
+  }
+  mapFirstOpen = false;
   mapObj.invalidateSize();   // WebKit needs this once the tab becomes visible
 
   document.getElementById('mapCount').textContent = `${plotted} of ${visibleInventory().filter(i=>i.status!=='Retired').length} units plotted`;
@@ -3649,6 +3714,11 @@ async function renderMap(){
   renderNearest();
 }
 
+function mapGoHome(){
+  const home = shopPoint();
+  if(!home){ showToast("Shop isn't on the map yet — check the address in Settings"); return; }
+  mapObj.setView([home.lat, home.lon], 15);
+}
 function mapRefresh(){
   Object.keys(geocache).forEach(k=>{ if(geocache[k]===null) delete geocache[k]; });
   renderMap();
