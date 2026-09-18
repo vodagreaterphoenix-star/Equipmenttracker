@@ -308,8 +308,29 @@ nav.bottom .navbtn.scanbtn{color:var(--cyan-dark);}
   background:var(--red-bg);color:var(--red);border:none;border-radius:8px;
   width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
 }*/
-.team-row .del-btn svg{width:15px;height:15px;display:block;}
-
+.team-row .del-btn{
+  -webkit-appearance:none;
+  appearance:none;
+  background:var(--red-bg,#FBE7EA);
+  color:var(--red,#D6455B);
+  border:none;
+  border-radius:8px;
+  padding:0;
+  width:28px;
+  height:28px;
+  min-width:28px;
+  min-height:28px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+}
+.team-row .del-btn svg{
+  width:15px;
+  height:15px;
+  display:block;
+  stroke:var(--red,#D6455B);
+}
 /* modal */
 .overlay{
   position:fixed;inset:0;background:rgba(10,20,30,0.55);z-index:100;
