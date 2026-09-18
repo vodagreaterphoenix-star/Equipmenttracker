@@ -540,6 +540,24 @@ nav.bottom .navbtn.scanbtn{color:var(--cyan-dark);}
   border-radius:var(--radius); border:1px solid var(--line);
   background:var(--gray-bg); overflow:hidden;
 }
+/* ---- GTA-style colour treatment, applied to the free OSM tiles ----
+   Dark: invert + hue-rotate turns the light map into a near-black base with
+   pale roads, then saturation/contrast push it toward the neon look.
+   Light: a flattened, desaturated version — clean and legible in sunlight.
+   Labels stay readable because the filter is applied uniformly. */
+#mapCanvas .leaflet-tile-pane{
+  filter:saturate(0.55) contrast(1.06) brightness(1.02);
+}
+#mapCanvas.map-dark .leaflet-tile-pane{
+  filter:invert(1) hue-rotate(180deg) saturate(0.5) brightness(0.93) contrast(1.15);
+}
+#mapCanvas.map-dark{ background:#0b0f14; }
+/* Keep the attribution legible against whichever base is showing. */
+#mapCanvas.map-dark .leaflet-control-attribution{
+  background:rgba(10,15,20,.75);color:#9fb0c0;
+}
+#mapCanvas.map-dark .leaflet-control-attribution a{ color:#00E5FF; }
+
 #mapCanvas.map-failed{
   display:flex;align-items:center;justify-content:center;
   text-align:center;padding:24px;font-size:13px;color:var(--muted);
@@ -567,6 +585,7 @@ nav.bottom .navbtn.scanbtn{color:var(--cyan-dark);}
 }
 .map-pin.has-overdue{background:var(--red);}
 /* GTA-style markers: neon on a dark base. */
+[data-theme="light"] .map-pin, html:not([data-theme="dark"]) .map-pin{ border-color:#FFFFFF; }
 .map-pin{
   background:#FFB300;color:#101010;border:2px solid #101010;
   box-shadow:0 0 0 2px rgba(255,179,0,.35), 0 0 12px rgba(255,179,0,.7);
@@ -1721,6 +1740,8 @@ function toggleTheme(){
   document.getElementById('themeIconSun').style.display = isDark ? 'block' : 'none';
   document.getElementById('themeIconMoon').style.display = isDark ? 'none' : 'block';
   try{ localStorage.setItem('voda-eq-theme', next); }catch(e){ /* storage unavailable, session-only */ }
+  // MAP FEATURE: repaint the map so its tiles match the new theme right away
+  if(typeof mapObj !== 'undefined' && mapObj && currentView === 'map') renderMap();
 }
 function initTheme(){
   let saved = null;
@@ -3500,11 +3521,13 @@ const MAP_CFG = {
   DEFAULT_ZOOM: 10,
   LEAFLET_CSS: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css',
   LEAFLET_JS:  'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
-  // Map styles. The app picks DARK when the app is in dark mode, LIGHT
-  // otherwise. Swap either URL to change the look — no other code changes.
-  TILE_DARK:  'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-  TILE_LIGHT: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-  TILE_ATTR: '&copy; OpenStreetMap, &copy; CARTO',
+  /* OpenStreetMap's own tile server. No API key, no account, no billing,
+     no quota to sign up for — it is the one source that has never required
+     one. The GTA-style look is applied as a CSS colour treatment over these
+     tiles (see .leaflet-tile-pane in the stylesheet), so the appearance costs
+     nothing and depends on no third party. */
+  TILE_URL: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  TILE_ATTR: '&copy; OpenStreetMap contributors',
   // Free address lookup. Fair-use is 1 request/second, so we wait 1.2s
   // between them. Results are cached in the Sheet and never looked up twice.
   GEOCODE_URL: 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=',
@@ -3515,6 +3538,7 @@ let geocache = {};                  // "normalized address" -> {lat,lon} or null
 let backendSupportsGeocache = true;
 let mapObj = null, mapMarkers = null, mapMeMarker = null;
 let mapLeafletPromise = null, mapGeocoding = false, mapFirstOpen = true;
+let mapTileLayer = null, mapTileIsDark = null;
 let myPosition = null;              // {lat, lon} once the user allows it
 
 function mapNorm(a){ return (a||'').trim().toLowerCase().replace(/\s+/g,' '); }
@@ -3648,11 +3672,16 @@ async function renderMap(){
     const isDark = document.documentElement.getAttribute('data-theme')==='dark';
     mapObj = L.map(canvas, { scrollWheelZoom:true })
       .setView(home ? [home.lat, home.lon] : MAP_CFG.DEFAULT_CENTER, home ? 13 : MAP_CFG.DEFAULT_ZOOM);
-    L.tileLayer(isDark ? MAP_CFG.TILE_DARK : MAP_CFG.TILE_LIGHT,
-                { attribution:MAP_CFG.TILE_ATTR, maxZoom:20 }).addTo(mapObj);
+    mapTileLayer = L.tileLayer(MAP_CFG.TILE_URL,
+                { attribution:MAP_CFG.TILE_ATTR, maxZoom:19 }).addTo(mapObj);
+    mapTileIsDark = isDark;
     mapMarkers = L.layerGroup().addTo(mapObj);
     mapFirstOpen = true;
   }
+  // Light/dark is a CSS colour treatment on the same free tiles — nothing
+  // is re-downloaded and no second tile source is involved.
+  canvas.classList.toggle('map-dark', document.documentElement.getAttribute('data-theme')==='dark');
+
   mapMarkers.clearLayers();
 
   const bounds = [], unplotted = [];
