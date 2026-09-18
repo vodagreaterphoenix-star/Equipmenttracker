@@ -545,11 +545,12 @@ nav.bottom .navbtn.scanbtn{color:var(--cyan-dark);}
    pale roads, then saturation/contrast push it toward the neon look.
    Light: a flattened, desaturated version — clean and legible in sunlight.
    Labels stay readable because the filter is applied uniformly. */
-/* LIGHT: GTA's daylight paper-map look — warm tan land, bleached roads. */
+/* Colour now comes from gta-dark.json / gta-light.json, not from a filter.
+   These two rules only apply if MapLibre fails to load and the app falls
+   back to plain raster tiles, so the map still looks right either way. */
 #mapCanvas .leaflet-tile-pane{
   filter:sepia(0.42) saturate(0.55) hue-rotate(-8deg) brightness(1.06) contrast(1.12);
 }
-/* DARK: GTA's night map — near-black ground, cold pale road network. */
 #mapCanvas.map-dark .leaflet-tile-pane{
   filter:invert(1) hue-rotate(185deg) saturate(0.42) brightness(0.86) contrast(1.28);
 }
@@ -3659,13 +3660,18 @@ const MAP_CFG = {
   DEFAULT_ZOOM: 10,
   LEAFLET_CSS: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css',
   LEAFLET_JS:  'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
-  /* OpenStreetMap's own tile server. No API key, no account, no billing,
-     no quota to sign up for — it is the one source that has never required
-     one. The GTA-style look is applied as a CSS colour treatment over these
-     tiles (see .leaflet-tile-pane in the stylesheet), so the appearance costs
-     nothing and depends on no third party. */
+  /* Map DATA comes from OpenFreeMap: free, open-source, no API key, no
+     account, no request limit. The LOOK comes from our own two style files
+     in this repo — gta-dark.json and gta-light.json — which you can edit
+     directly. Colours there are commented in the "voda:palette" block. */
+  STYLE_DARK:  'gta-dark.json',
+  STYLE_LIGHT: 'gta-light.json',
+  MAPLIBRE_JS:  'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js',
+  MAPLIBRE_CSS: 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css',
+  MAPLIBRE_LEAFLET: 'https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js',
+  TILE_ATTR: '&copy; OpenFreeMap &copy; OpenMapTiles, data &copy; OpenStreetMap contributors',
+  // Kept as an emergency fallback if MapLibre can't load.
   TILE_URL: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-  TILE_ATTR: '&copy; OpenStreetMap contributors',
   // Free address lookup. Fair-use is 1 request/second, so we wait 1.2s
   // between them. Results are cached in the Sheet and never looked up twice.
   GEOCODE_URL: 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=',
@@ -3731,20 +3737,47 @@ function mapGroups(){
   return Object.values(g);
 }
 
-function mapLoadLeaflet(){
-  if(window.L) return Promise.resolve(true);
-  if(mapLeafletPromise) return mapLeafletPromise;
-  mapLeafletPromise = new Promise(resolve=>{
-    const css = document.createElement('link');
-    css.rel='stylesheet'; css.href=MAP_CFG.LEAFLET_CSS;
-    document.head.appendChild(css);
-    const js = document.createElement('script');
-    js.src = MAP_CFG.LEAFLET_JS;
-    js.onload = ()=>resolve(true);
-    js.onerror = ()=>resolve(false);
-    document.head.appendChild(js);
+function mapAddCss(href){
+  const l = document.createElement('link'); l.rel='stylesheet'; l.href=href;
+  document.head.appendChild(l);
+}
+function mapAddScript(src){
+  return new Promise(res=>{
+    const t = document.createElement('script');
+    t.src = src; t.onload = ()=>res(true); t.onerror = ()=>res(false);
+    document.head.appendChild(t);
   });
+}
+/* Loads Leaflet (markers, popups, controls) and MapLibre GL (renders our
+   vector styles). The bridge plugin lets MapLibre act as a Leaflet layer,
+   so every marker and popup in this app keeps working unchanged. */
+function mapLoadLeaflet(){
+  if(mapLeafletPromise) return mapLeafletPromise;
+  mapLeafletPromise = (async ()=>{
+    if(!window.L){
+      mapAddCss(MAP_CFG.LEAFLET_CSS);
+      if(!await mapAddScript(MAP_CFG.LEAFLET_JS)) return false;
+    }
+    if(!window.maplibregl){
+      mapAddCss(MAP_CFG.MAPLIBRE_CSS);
+      await mapAddScript(MAP_CFG.MAPLIBRE_JS);
+    }
+    if(window.maplibregl && !(window.L && L.maplibreGL)){
+      await mapAddScript(MAP_CFG.MAPLIBRE_LEAFLET);
+    }
+    return !!window.L;
+  })();
   return mapLeafletPromise;
+}
+/* Our styles, or plain tiles if MapLibre didn't load. */
+function mapMakeBaseLayer(isDark){
+  if(window.maplibregl && L.maplibreGL){
+    return L.maplibreGL({
+      style: isDark ? MAP_CFG.STYLE_DARK : MAP_CFG.STYLE_LIGHT,
+      attribution: MAP_CFG.TILE_ATTR
+    });
+  }
+  return L.tileLayer(MAP_CFG.TILE_URL, { attribution:MAP_CFG.TILE_ATTR, maxZoom:19 });
 }
 
 async function mapGeocodeMissing(addresses){
@@ -3830,15 +3863,19 @@ async function renderMap(){
     const isDark = document.documentElement.getAttribute('data-theme')==='dark';
     mapObj = L.map(canvas, { scrollWheelZoom:true })
       .setView(home ? [home.lat, home.lon] : MAP_CFG.DEFAULT_CENTER, home ? 13 : MAP_CFG.DEFAULT_ZOOM);
-    mapTileLayer = L.tileLayer(MAP_CFG.TILE_URL,
-                { attribution:MAP_CFG.TILE_ATTR, maxZoom:19 }).addTo(mapObj);
+    mapTileLayer = mapMakeBaseLayer(isDark).addTo(mapObj);
     mapTileIsDark = isDark;
     mapMarkers = L.layerGroup().addTo(mapObj);
     mapFirstOpen = true;
   }
-  // Light/dark is a CSS colour treatment on the same free tiles — nothing
-  // is re-downloaded and no second tile source is involved.
-  canvas.classList.toggle('map-dark', document.documentElement.getAttribute('data-theme')==='dark');
+  // Swap between our two hand-written styles when the theme changes.
+  const wantDark = document.documentElement.getAttribute('data-theme')==='dark';
+  canvas.classList.toggle('map-dark', wantDark);
+  if(mapTileLayer && wantDark !== mapTileIsDark){
+    mapObj.removeLayer(mapTileLayer);
+    mapTileLayer = mapMakeBaseLayer(wantDark).addTo(mapObj);
+    mapTileIsDark = wantDark;
+  }
 
   mapMarkers.clearLayers();
 
