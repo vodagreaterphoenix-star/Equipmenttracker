@@ -1435,6 +1435,10 @@ nav.bottom .navbtn.scanbtn{color:var(--cyan-dark);}
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
         Find from address
       </button>
+      <button class="map-btn" onclick="reverseShopAddress()">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><polyline points="21 3 21 9 15 9"/></svg>
+        Address here
+      </button>
       <button class="map-btn" onclick="startShopPicker()">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
         Pick on map
@@ -1772,6 +1776,30 @@ async function lookupShopAddress(){
   btn.removeAttribute('disabled');
 }
 
+/* Read the street address back from the coordinates in the boxes, so a
+   pinned point can correct a mistyped address. */
+async function reverseShopAddress(){
+  const la = parseFloat(document.getElementById('setShopLat').value);
+  const lo = parseFloat(document.getElementById('setShopLon').value);
+  const out = document.getElementById('setLookupResult');
+  if(isNaN(la) || isNaN(lo)){ showToast('Set a latitude and longitude first'); return; }
+  out.textContent = 'Reading the address at that point…';
+  try{
+    const res = await fetch(`${MAP_CFG.REVERSE_URL}lat=${la}&lon=${lo}`);
+    const j = await res.json();
+    if(j && j.display_name){
+      out.innerHTML = 'That point is:<br><b>' + escapeHtml(j.display_name) + '</b><br>' +
+        '<a href="#" onclick="document.getElementById(\'setShopAddress\').value=this.dataset.a;return false;" data-a="' +
+        escapeHtml(j.display_name) + '" style="color:var(--cyan-dark);font-weight:700;">Use this as the shop address</a>';
+    } else {
+      out.textContent = "No address recorded at that point — the coordinates still work fine.";
+    }
+  }catch(e){
+    console.error('reverse lookup failed', e);
+    out.textContent = "Lookup failed — check your connection.";
+  }
+}
+
 /* Tap the map to place the shop. Works with no address at all. */
 let shopPickerOn = false;
 async function startShopPicker(){
@@ -1785,12 +1813,26 @@ async function startShopPicker(){
   mapObj.once('click', async e=>{
     shopPickerOn = false;
     document.getElementById('mapCanvas').classList.remove('map-picking');
-    appSettings.shopLat = e.latlng.lat.toFixed(6);
-    appSettings.shopLon = e.latlng.lng.toFixed(6);
+    const la = e.latlng.lat.toFixed(6), lo = e.latlng.lng.toFixed(6);
+    appSettings.shopLat = la;
+    appSettings.shopLon = lo;
+    showToast('Looking up that spot…');
+    // Ask what address actually sits there, and offer to correct the stored one.
+    let found = '';
+    try{
+      const res = await fetch(`${MAP_CFG.REVERSE_URL}lat=${la}&lon=${lo}`);
+      const j = await res.json();
+      found = (j && j.display_name) ? j.display_name : '';
+    }catch(err){ console.error('reverse lookup failed', err); }
+    if(found && found !== shopAddress()){
+      if(confirm(`That spot is:\n\n${found}\n\nUse this as the shop address?\n\nCurrently saved:\n${shopAddress()}`)){
+        appSettings.shopAddress = found;
+      }
+    }
     await saveSettings();
     await renderMap();
     mapGoHome();
-    showToast('Shop location set');
+    showToast(found ? 'Shop location set' : 'Shop pinned — address unchanged');
   });
 }
 
@@ -3622,7 +3664,9 @@ const MAP_CFG = {
   // Free address lookup. Fair-use is 1 request/second, so we wait 1.2s
   // between them. Results are cached in the Sheet and never looked up twice.
   GEOCODE_URL: 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=',
-  GEOCODE_DELAY_MS: 1200
+  GEOCODE_DELAY_MS: 1200,
+  // Turns a point on the map back into a street address.
+  REVERSE_URL: 'https://nominatim.openstreetmap.org/reverse?format=json&zoom=18&addressdetails=1&'
 };
 
 let geocache = {};                  // "normalized address" -> {lat,lon} or null
@@ -3791,12 +3835,18 @@ async function renderMap(){
       : '<i>Nothing here right now.</i>';
     const more = g.items.length>40 ? `<br>…and ${g.items.length-40} more` : '';
     const dist = myPosition ? ` · ${mapDistanceMi(myPosition, pt).toFixed(1)} mi away` : '';
+    const shopTools = g.isShop ? `
+          <div class="map-nav-row" style="margin-top:5px;">
+            <a href="#" onclick="openSettings();return false;" style="background:#0A1F3D;">Edit shop</a>
+            <a class="g" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${pt.lat},${pt.lon}">Look up</a>
+          </div>` : '';
     L.marker([pt.lat,pt.lon],{icon})
       .bindPopup(`<div class="map-pop">
           <div class="nm">${escapeHtml(g.label)}</div>
           <div class="ad">${escapeHtml(g.address)}${dist}</div>
           <div class="it">${list}${more}</div>
           ${mapNavLinks(pt.lat, pt.lon, g.label)}
+          ${shopTools}
         </div>`)
       .addTo(mapMarkers);
     bounds.push([pt.lat,pt.lon]);
