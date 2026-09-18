@@ -402,6 +402,11 @@ nav.bottom .navbtn.scanbtn{color:var(--cyan-dark);}
 .report-col-empty{font-size:11px;color:var(--muted);padding:6px 0;}
 
 @media print{
+  /* The map prints as it appears on screen — its controls are hidden so the
+     sheet shows the map and its pins, nothing else. */
+  #mapCanvas .leaflet-control-zoom,
+  #view-map .map-toolbar{ display:none !important; }
+  #mapCanvas{ height:auto !important; min-height:420px !important; break-inside:avoid; }
   header.top, nav.bottom, .quick-grid{ display:none !important; }
   .content{ padding-bottom:0 !important; }
   .view{ display:none !important; }
@@ -838,6 +843,10 @@ nav.bottom .navbtn.scanbtn{color:var(--cyan-dark);}
       <button class="map-btn" onclick="mapGoHome()">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
         Shop
+      </button>
+      <button class="map-btn" onclick="mapSaveImage()">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.2"/></svg>
+        Save image
       </button>
       <button class="map-btn" id="mapRefreshBtn" onclick="mapRefresh()">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><polyline points="21 3 21 9 15 9"/></svg>
@@ -3774,7 +3783,11 @@ function mapMakeBaseLayer(isDark){
   if(window.maplibregl && L.maplibreGL){
     return L.maplibreGL({
       style: isDark ? MAP_CFG.STYLE_DARK : MAP_CFG.STYLE_LIGHT,
-      attribution: MAP_CFG.TILE_ATTR
+      attribution: MAP_CFG.TILE_ATTR,
+      // Required for the map to appear in screenshots, prints and PDFs.
+      // WebGL normally throws its drawing buffer away the instant it has
+      // painted, which is why an unconfigured MapLibre map captures blank.
+      preserveDrawingBuffer: true
     });
   }
   return L.tileLayer(MAP_CFG.TILE_URL, { attribution:MAP_CFG.TILE_ATTR, maxZoom:19 });
@@ -3942,6 +3955,34 @@ async function renderMap(){
     : '';
 
   renderNearest();
+}
+
+/* Save the map, pins and all, as a PNG. Works on Android, iOS, Windows,
+   macOS and Linux — the browser hands the file to whatever that platform
+   uses for downloads (Files, Photos, the Downloads folder). */
+async function mapSaveImage(){
+  if(!mapObj){ showToast('Open the map first'); return; }
+  showToast('Building the image…');
+  try{
+    await loadPdfLibs();               // html2canvas, already used for PDFs
+    const el = document.getElementById('mapCanvas');
+    const shot = await html2canvas(el, {
+      backgroundColor: mapTileIsDark ? '#0A0E14' : '#E8E0CE',
+      useCORS: true, scale: 2, logging: false
+    });
+    shot.toBlob(blob=>{
+      if(!blob){ showToast("Couldn't build the image"); return; }
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `voda-equipment-map-${todayStr()}.png`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+      showToast('Map image saved');
+    }, 'image/png');
+  }catch(e){
+    console.error('map image failed', e);
+    showToast("Couldn't build the image — take a screenshot instead");
+  }
 }
 
 function mapGoHome(){
