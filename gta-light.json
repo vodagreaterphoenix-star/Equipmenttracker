@@ -1,19 +1,19 @@
 {
   "version": 8,
-  "name": "Voda GTA Dark",
+  "name": "Voda GTA Light",
   "metadata": {
-    "voda:notes": "Navy night map: every road is lit blue so the street grid reads as a glowing network, with freeways brightest. Edit any colour in voda:palette below and commit \u2014 no build step.",
+    "voda:notes": "Daylight map: near-white ground, white streets with soft grey casings, dark grey freeways. Mirrors gta-dark.json layer for layer, so a change in one has an obvious counterpart in the other.",
     "voda:palette": {
-      "land": "#0B1B2E navy ground",
-      "landuse": "#0E2036 city blocks, a touch lifted",
-      "water": "#071528 near-black water",
-      "park": "#0C2231",
-      "building": "#12283F",
-      "road-minor": "#2E6FA8 lit side streets \u2014 visible from zoomed out",
-      "road-secondary": "#3A88C4",
-      "road-primary": "#4A9FDB",
-      "road-motorway": "#5FB8F0 brightest, with a dark casing for the glow",
-      "label": "#CDE4F7 near-white blue text"
+      "land": "#E9EAEC near-white ground",
+      "landuse": "#E3E5E8 blocks, barely separated",
+      "water": "#C9D6DC pale blue-grey",
+      "park": "#DDE3DC faint green-grey",
+      "building": "#DCDEE1",
+      "road-minor": "#FFFFFF white side streets",
+      "road-secondary": "#F4F5F6",
+      "road-primary": "#9AA1A8 grey arterials",
+      "road-motorway": "#6E757C dark grey freeways",
+      "label": "#2B3036 near-black text"
     }
   },
   "glyphs": "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
@@ -28,7 +28,7 @@
       "id": "background",
       "type": "background",
       "paint": {
-        "background-color": "#0B1B2E"
+        "background-color": "#E9EAEC"
       }
     },
     {
@@ -42,7 +42,7 @@
         "residential"
       ],
       "paint": {
-        "fill-color": "#0E2036"
+        "fill-color": "#E3E5E8"
       }
     },
     {
@@ -51,7 +51,7 @@
       "source": "openmaptiles",
       "source-layer": "park",
       "paint": {
-        "fill-color": "#0C2231",
+        "fill-color": "#DDE3DC",
         "fill-opacity": 0.9
       }
     },
@@ -66,7 +66,7 @@
         "tunnel"
       ],
       "paint": {
-        "fill-color": "#071528"
+        "fill-color": "#C9D6DC"
       }
     },
     {
@@ -75,7 +75,7 @@
       "source": "openmaptiles",
       "source-layer": "waterway",
       "paint": {
-        "line-color": "#1B4B72",
+        "line-color": "#BFCED6",
         "line-width": 1.2
       }
     },
@@ -86,8 +86,8 @@
       "source-layer": "building",
       "minzoom": 13,
       "paint": {
-        "fill-color": "#12283F",
-        "fill-outline-color": "#1B3A55",
+        "fill-color": "#DCDEE1",
+        "fill-outline-color": "#D2D5D9",
         "fill-opacity": [
           "interpolate",
           [
@@ -117,7 +117,7 @@
       ],
       "minzoom": 10,
       "paint": {
-        "line-color": "#2E6FA8",
+        "line-color": "#FFFFFF",
         "line-width": [
           "interpolate",
           [
@@ -150,7 +150,7 @@
         "tertiary"
       ],
       "paint": {
-        "line-color": "#3A88C4",
+        "line-color": "#F4F5F6",
         "line-width": [
           "interpolate",
           [
@@ -181,7 +181,7 @@
         "trunk"
       ],
       "paint": {
-        "line-color": "#4A9FDB",
+        "line-color": "#9AA1A8",
         "line-width": [
           "interpolate",
           [
@@ -211,7 +211,7 @@
         "motorway"
       ],
       "paint": {
-        "line-color": "#071528",
+        "line-color": "#E9EAEC",
         "line-width": [
           "interpolate",
           [
@@ -241,7 +241,7 @@
         "motorway"
       ],
       "paint": {
-        "line-color": "#5FB8F0",
+        "line-color": "#6E757C",
         "line-width": [
           "interpolate",
           [
@@ -272,7 +272,7 @@
       ],
       "minzoom": 12,
       "paint": {
-        "line-color": "#1C3B5A",
+        "line-color": "#C8CCD1",
         "line-width": 1,
         "line-dasharray": [
           3,
@@ -298,9 +298,9 @@
         "symbol-placement": "line"
       },
       "paint": {
-        "text-color": "#9FC6E8",
-        "text-halo-color": "#0B1B2E",
-        "text-halo-width": 1.6
+        "text-color": "#5A6067",
+        "text-halo-color": "#E9EAEC",
+        "text-halo-width": 1.8
       }
     },
     {
@@ -337,13 +337,13 @@
           12,
           16
         ],
-        "text-transform": "none",
-        "text-letter-spacing": 0.02
+        "text-transform": "uppercase",
+        "text-letter-spacing": 0.14
       },
       "paint": {
-        "text-color": "#CDE4F7",
-        "text-halo-color": "#0B1B2E",
-        "text-halo-width": 1.6
+        "text-color": "#2B3036",
+        "text-halo-color": "#E9EAEC",
+        "text-halo-width": 1.8
       }
     }
   ]
