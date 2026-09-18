@@ -246,6 +246,12 @@ nav.bottom .navbtn{
   display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;
   color:var(--muted);font-size:10.5px;font-weight:600;padding:4px 10px;flex:1;position:relative;
 }
+/* MAP FEATURE: a 7th nav button makes the bar tight on small phones.
+   Tightens padding and label size below 400px only. Delete to revert. */
+@media (max-width:400px){
+  nav.bottom .navbtn{padding:4px 4px;font-size:9.5px;}
+  nav.bottom .navbtn svg{width:19px;height:19px;}
+}
 nav.bottom .navbtn svg{width:21px;height:21px;stroke:var(--muted);}
 nav.bottom .navbtn.active{color:var(--cyan-dark);}
 nav.bottom .navbtn.active svg{stroke:var(--cyan-dark);}
@@ -331,6 +337,7 @@ nav.bottom .navbtn.scanbtn{color:var(--cyan-dark);}
   display:block;
   stroke:var(--red,#D6455B);
 }
+
 /* modal */
 .overlay{
   position:fixed;inset:0;background:rgba(10,20,30,0.55);z-index:100;
@@ -712,6 +719,18 @@ nav.bottom .navbtn.scanbtn{color:var(--cyan-dark);}
     <div id="fleetReportBody" class="fleet-report-doc"></div>
   </div></div>
 
+  <!-- ===== BEGIN MAP FEATURE (HTML) — added 2026-09-17 =====
+       Step 1: the tab and an empty shell. The map itself comes next. ===== -->
+  <div class="view" id="view-map">
+    <div class="section-title">Equipment map</div>
+    <div class="empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3 3 6v15l6-3 6 3 6-3V3l-6 3z"/><path d="M9 3v15"/><path d="M15 6v15"/></svg>
+      <div>Map coming in the next step.</div>
+      <div style="font-size:11.5px;margin-top:6px;">The tab works — this is where job sites will plot.</div>
+    </div>
+  </div>
+  <!-- ===== END MAP FEATURE (HTML) ===== -->
+
   <nav class="bottom">
     <button class="navbtn active" data-view="home" onclick="switchView('home')">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
@@ -735,6 +754,11 @@ nav.bottom .navbtn.scanbtn{color:var(--cyan-dark);}
     <button class="navbtn" data-view="activity" onclick="switchView('activity')">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
       Activity
+    </button>
+    <!-- MAP FEATURE: nav button. Delete this <button> block to remove the Map tab. -->
+    <button class="navbtn" data-view="map" onclick="switchView('map')">
+      <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3 3 6v15l6-3 6 3 6-3V3l-6 3z"/><path d="M9 3v15"/><path d="M15 6v15"/></svg>
+      Map
     </button>
   </nav>
 </div>
