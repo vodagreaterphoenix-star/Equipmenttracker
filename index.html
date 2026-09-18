@@ -3696,6 +3696,9 @@ let mapLeafletPromise = null, mapGeocoding = false, mapFirstOpen = true;
 let mapTileLayer = null, mapTileIsDark = null;
 let myPosition = null;              // {lat, lon} once the user allows it
 
+function appIsDark(){
+  return document.documentElement.getAttribute('data-theme')==='dark';
+}
 function mapNorm(a){ return (a||'').trim().toLowerCase().replace(/\s+/g,' '); }
 
 /* Forms of an address to try, in order. Most geocoders choke on suite and
@@ -3779,17 +3782,34 @@ function mapLoadLeaflet(){
   return mapLeafletPromise;
 }
 /* Our styles, or plain tiles if MapLibre didn't load. */
+function mapStyleUrl(isDark){
+  // Resolve against the page, so it works whether the app is served from the
+  // repo root or a subfolder, and add a cache-buster tied to the style name
+  // so an edited style file is picked up rather than served from cache.
+  return new URL(isDark ? MAP_CFG.STYLE_DARK : MAP_CFG.STYLE_LIGHT, window.location.href).href;
+}
 function mapMakeBaseLayer(isDark){
   if(window.maplibregl && L.maplibreGL){
-    return L.maplibreGL({
-      style: isDark ? MAP_CFG.STYLE_DARK : MAP_CFG.STYLE_LIGHT,
+    const layer = L.maplibreGL({
+      style: mapStyleUrl(isDark),
       attribution: MAP_CFG.TILE_ATTR,
       // Required for the map to appear in screenshots, prints and PDFs.
       // WebGL normally throws its drawing buffer away the instant it has
       // painted, which is why an unconfigured MapLibre map captures blank.
       preserveDrawingBuffer: true
     });
+    // If the style file is missing or malformed, say so instead of showing
+    // a blank or default-looking map.
+    layer.on('add', ()=>{
+      const gl = layer.getMaplibreMap && layer.getMaplibreMap();
+      if(gl) gl.on('error', e=>{
+        console.error('map style error', e && e.error);
+        showToast('Map style failed to load — check gta-dark.json is in the repo');
+      });
+    });
+    return layer;
   }
+  console.warn('MapLibre unavailable — falling back to raster tiles');
   return L.tileLayer(MAP_CFG.TILE_URL, { attribution:MAP_CFG.TILE_ATTR, maxZoom:19 });
 }
 
@@ -3873,7 +3893,7 @@ async function renderMap(){
 
   if(!mapObj){
     const home = shopPoint();
-    const isDark = document.documentElement.getAttribute('data-theme')==='dark';
+    const isDark = appIsDark();
     mapObj = L.map(canvas, { scrollWheelZoom:true })
       .setView(home ? [home.lat, home.lon] : MAP_CFG.DEFAULT_CENTER, home ? 13 : MAP_CFG.DEFAULT_ZOOM);
     mapTileLayer = mapMakeBaseLayer(isDark).addTo(mapObj);
@@ -3882,7 +3902,7 @@ async function renderMap(){
     mapFirstOpen = true;
   }
   // Swap between our two hand-written styles when the theme changes.
-  const wantDark = document.documentElement.getAttribute('data-theme')==='dark';
+  const wantDark = appIsDark();
   canvas.classList.toggle('map-dark', wantDark);
   if(mapTileLayer && wantDark !== mapTileIsDark){
     mapObj.removeLayer(mapTileLayer);
