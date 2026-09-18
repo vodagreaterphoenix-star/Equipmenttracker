@@ -1,16 +1,19 @@
 {
   "version": 8,
-  "name": "Voda GTA Light",
+  "name": "Voda GTA Dark",
   "metadata": {
-    "voda:notes": "Daylight companion to gta-dark.json \u2014 the GTA paper-map look. Same layer structure, different palette, so edits map one-to-one between the two files.",
+    "voda:notes": "Navy night map: every road is lit blue so the street grid reads as a glowing network, with freeways brightest. Edit any colour in voda:palette below and commit \u2014 no build step.",
     "voda:palette": {
-      "land": "#E8E0CE warm paper tan",
-      "water": "#A9CBD6 pale desert water",
-      "park": "#D6DEC2 dry olive",
-      "road-minor": "#FFFFFF white side streets",
-      "road-main": "#FDF6E6 bleached arterials",
-      "road-motorway": "#F2C14E amber freeways",
-      "label": "#4A4335 ink brown"
+      "land": "#0B1B2E navy ground",
+      "landuse": "#0E2036 city blocks, a touch lifted",
+      "water": "#071528 near-black water",
+      "park": "#0C2231",
+      "building": "#12283F",
+      "road-minor": "#2E6FA8 lit side streets \u2014 visible from zoomed out",
+      "road-secondary": "#3A88C4",
+      "road-primary": "#4A9FDB",
+      "road-motorway": "#5FB8F0 brightest, with a dark casing for the glow",
+      "label": "#CDE4F7 near-white blue text"
     }
   },
   "glyphs": "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
@@ -25,7 +28,7 @@
       "id": "background",
       "type": "background",
       "paint": {
-        "background-color": "#E8E0CE"
+        "background-color": "#0B1B2E"
       }
     },
     {
@@ -39,7 +42,7 @@
         "residential"
       ],
       "paint": {
-        "fill-color": "#E2D9C4"
+        "fill-color": "#0E2036"
       }
     },
     {
@@ -48,7 +51,7 @@
       "source": "openmaptiles",
       "source-layer": "park",
       "paint": {
-        "fill-color": "#D6DEC2",
+        "fill-color": "#0C2231",
         "fill-opacity": 0.9
       }
     },
@@ -63,7 +66,7 @@
         "tunnel"
       ],
       "paint": {
-        "fill-color": "#A9CBD6"
+        "fill-color": "#071528"
       }
     },
     {
@@ -72,7 +75,7 @@
       "source": "openmaptiles",
       "source-layer": "waterway",
       "paint": {
-        "line-color": "#A9CBD6",
+        "line-color": "#1B4B72",
         "line-width": 1.2
       }
     },
@@ -83,8 +86,8 @@
       "source-layer": "building",
       "minzoom": 13,
       "paint": {
-        "fill-color": "#D8CEB8",
-        "fill-outline-color": "#C6B99E",
+        "fill-color": "#12283F",
+        "fill-outline-color": "#1B3A55",
         "fill-opacity": [
           "interpolate",
           [
@@ -112,24 +115,26 @@
         "service",
         "track"
       ],
-      "minzoom": 12,
+      "minzoom": 10,
       "paint": {
-        "line-color": "#FFFFFF",
+        "line-color": "#2E6FA8",
         "line-width": [
           "interpolate",
           [
             "exponential",
-            1.6
+            1.5
           ],
           [
             "zoom"
           ],
-          12,
-          0.4,
+          10,
+          0.35,
+          13,
+          0.8,
           16,
-          2.4,
+          2.2,
           20,
-          10
+          9
         ]
       }
     },
@@ -145,12 +150,12 @@
         "tertiary"
       ],
       "paint": {
-        "line-color": "#FDF6E6",
+        "line-color": "#3A88C4",
         "line-width": [
           "interpolate",
           [
             "exponential",
-            1.6
+            1.5
           ],
           [
             "zoom"
@@ -158,9 +163,9 @@
           8,
           0.5,
           13,
-          2,
+          1.6,
           18,
-          9
+          8
         ]
       }
     },
@@ -176,22 +181,22 @@
         "trunk"
       ],
       "paint": {
-        "line-color": "#FDF6E6",
+        "line-color": "#4A9FDB",
         "line-width": [
           "interpolate",
           [
             "exponential",
-            1.6
+            1.5
           ],
           [
             "zoom"
           ],
           7,
-          0.7,
+          0.8,
           13,
-          3,
+          2.4,
           18,
-          13
+          11
         ]
       }
     },
@@ -206,22 +211,22 @@
         "motorway"
       ],
       "paint": {
-        "line-color": "#C9A227",
+        "line-color": "#071528",
         "line-width": [
           "interpolate",
           [
             "exponential",
-            1.6
+            1.5
           ],
           [
             "zoom"
           ],
-          6,
-          2,
+          5,
+          2.2,
           13,
-          7,
+          6.5,
           18,
-          22
+          20
         ]
       }
     },
@@ -236,22 +241,22 @@
         "motorway"
       ],
       "paint": {
-        "line-color": "#F2C14E",
+        "line-color": "#5FB8F0",
         "line-width": [
           "interpolate",
           [
             "exponential",
-            1.6
+            1.5
           ],
           [
             "zoom"
           ],
-          6,
-          0.9,
+          5,
+          1.1,
           13,
-          4,
+          3.4,
           18,
-          16
+          14
         ]
       }
     },
@@ -267,7 +272,7 @@
       ],
       "minzoom": 12,
       "paint": {
-        "line-color": "#BCB09A",
+        "line-color": "#1C3B5A",
         "line-width": 1,
         "line-dasharray": [
           3,
@@ -293,9 +298,9 @@
         "symbol-placement": "line"
       },
       "paint": {
-        "text-color": "#4A4335",
-        "text-halo-color": "#E8E0CE",
-        "text-halo-width": 1.4
+        "text-color": "#9FC6E8",
+        "text-halo-color": "#0B1B2E",
+        "text-halo-width": 1.6
       }
     },
     {
@@ -332,13 +337,13 @@
           12,
           16
         ],
-        "text-transform": "uppercase",
-        "text-letter-spacing": 0.14
+        "text-transform": "none",
+        "text-letter-spacing": 0.02
       },
       "paint": {
-        "text-color": "#332E24",
-        "text-halo-color": "#E8E0CE",
-        "text-halo-width": 1.8
+        "text-color": "#CDE4F7",
+        "text-halo-color": "#0B1B2E",
+        "text-halo-width": 1.6
       }
     }
   ]
