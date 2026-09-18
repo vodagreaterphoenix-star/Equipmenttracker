@@ -545,13 +545,18 @@ nav.bottom .navbtn.scanbtn{color:var(--cyan-dark);}
    pale roads, then saturation/contrast push it toward the neon look.
    Light: a flattened, desaturated version — clean and legible in sunlight.
    Labels stay readable because the filter is applied uniformly. */
+/* LIGHT: GTA's daylight paper-map look — warm tan land, bleached roads. */
 #mapCanvas .leaflet-tile-pane{
-  filter:saturate(0.55) contrast(1.06) brightness(1.02);
+  filter:sepia(0.42) saturate(0.55) hue-rotate(-8deg) brightness(1.06) contrast(1.12);
 }
+/* DARK: GTA's night map — near-black ground, cold pale road network. */
 #mapCanvas.map-dark .leaflet-tile-pane{
-  filter:invert(1) hue-rotate(180deg) saturate(0.5) brightness(0.93) contrast(1.15);
+  filter:invert(1) hue-rotate(185deg) saturate(0.42) brightness(0.86) contrast(1.28);
 }
-#mapCanvas.map-dark{ background:#0b0f14; }
+#mapCanvas.map-dark{ background:#080c11; }
+#mapCanvas{ background:#e9e0cc; }
+/* Shop-placing mode: crosshair cursor and a cyan frame so it's obvious. */
+#mapCanvas.map-picking{ cursor:crosshair; box-shadow:inset 0 0 0 3px #00E5FF; }
 /* Keep the attribution legible against whichever base is showing. */
 #mapCanvas.map-dark .leaflet-control-attribution{
   background:rgba(10,15,20,.75);color:#9fb0c0;
@@ -1420,12 +1425,22 @@ nav.bottom .navbtn.scanbtn{color:var(--cyan-dark);}
     <div class="hint">Where equipment lives when it's not on a job. Shown on any item sitting at the shop, and it's the address the map will use for the shop pin.</div>
   </div>
   <div class="field">
-    <label>Exact map position (optional)</label>
-    <div style="display:flex;gap:8px;">
-      <input id="setShopLat" placeholder="Latitude e.g. 33.5684" style="flex:1;">
-      <input id="setShopLon" placeholder="Longitude e.g. -112.0953" style="flex:1;">
+    <label>Where it sits on the map</label>
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <input id="setShopLat" placeholder="Latitude" style="flex:1;">
+      <input id="setShopLon" placeholder="Longitude" style="flex:1;">
     </div>
-    <div class="hint">Leave blank to place the shop from its address. To pin it exactly: open Google Maps, right-click your yard, click the coordinates at the top of the menu to copy them, and paste them here. When these are filled in, the address is never looked up.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="map-btn" id="setLookupBtn" onclick="lookupShopAddress()">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        Find from address
+      </button>
+      <button class="map-btn" onclick="startShopPicker()">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+        Pick on map
+      </button>
+    </div>
+    <div id="setLookupResult" class="hint" style="margin-top:8px;">Tap <b>Find from address</b> to place the shop automatically, or <b>Pick on map</b> to tap your yard directly — that always works, even if the address can't be found.</div>
   </div>
   <div id="setSettingsWarning" class="hint" style="display:none;background:var(--red-bg);color:var(--red);font-weight:700;"></div>
   <div class="btn-row"><button class="btn btn-primary" onclick="confirmSaveSettings()">Save settings</button></div>
@@ -1718,6 +1733,54 @@ async function confirmSaveSettings(){
   closeModal('modalSettings');
   renderAll();
   showToast('Settings saved');
+}
+
+/* Look the shop address up and fill in its coordinates. */
+async function lookupShopAddress(){
+  const addr = document.getElementById('setShopAddress').value.trim();
+  const out  = document.getElementById('setLookupResult');
+  const btn  = document.getElementById('setLookupBtn');
+  if(!addr){ showToast('Enter the shop address first'); return; }
+  btn.setAttribute('disabled','disabled');
+  out.textContent = 'Looking up that address…';
+  try{
+    const res  = await fetch(MAP_CFG.GEOCODE_URL + encodeURIComponent(addr));
+    const rows = await res.json();
+    if(rows && rows.length){
+      document.getElementById('setShopLat').value = parseFloat(rows[0].lat).toFixed(6);
+      document.getElementById('setShopLon').value = parseFloat(rows[0].lon).toFixed(6);
+      out.innerHTML = '\u2713 Found: ' + escapeHtml(rows[0].display_name || addr) +
+        '<br>Check that looks right, then Save. If it\u2019s wrong, use <b>Pick on map</b>.';
+    } else {
+      out.innerHTML = "Couldn\u2019t find that address. Try adding the ZIP code, or use <b>Pick on map</b> to tap your yard directly.";
+    }
+  }catch(e){
+    console.error('shop lookup failed', e);
+    out.textContent = "Lookup failed — check your connection, or use Pick on map.";
+  }
+  btn.removeAttribute('disabled');
+}
+
+/* Tap the map to place the shop. Works with no address at all. */
+let shopPickerOn = false;
+async function startShopPicker(){
+  closeModal('modalSettings');
+  switchView('map');
+  await renderMap();
+  if(!mapObj){ showToast("Map isn't ready yet — try again in a moment"); return; }
+  shopPickerOn = true;
+  document.getElementById('mapCanvas').classList.add('map-picking');
+  showToast('Tap the map where your shop is');
+  mapObj.once('click', async e=>{
+    shopPickerOn = false;
+    document.getElementById('mapCanvas').classList.remove('map-picking');
+    appSettings.shopLat = e.latlng.lat.toFixed(6);
+    appSettings.shopLon = e.latlng.lng.toFixed(6);
+    await saveSettings();
+    await renderMap();
+    mapGoHome();
+    showToast('Shop location set');
+  });
 }
 
 async function saveSettings(){
