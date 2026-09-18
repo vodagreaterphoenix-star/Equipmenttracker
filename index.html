@@ -1441,6 +1441,15 @@ nav.bottom .navbtn.scanbtn{color:var(--cyan-dark);}
       </button>
     </div>
     <div id="setLookupResult" class="hint" style="margin-top:8px;">Tap <b>Find from address</b> to place the shop automatically, or <b>Pick on map</b> to tap your yard directly — that always works, even if the address can't be found.</div>
+    <div id="setVerifyRow" style="display:none;margin-top:8px;">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px;">Check this spot in</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <a id="vfyGoogle" class="map-btn" target="_blank" rel="noopener" href="#" style="text-decoration:none;">Google Maps</a>
+        <a id="vfyApple"  class="map-btn" target="_blank" rel="noopener" href="#" style="text-decoration:none;">Apple Maps</a>
+        <a id="vfyOsm"    class="map-btn" target="_blank" rel="noopener" href="#" style="text-decoration:none;">OpenStreetMap</a>
+      </div>
+      <div class="hint" style="margin-top:6px;">Opens the exact coordinates above. If the pin lands on the wrong building, use <b>Pick on map</b> instead.</div>
+    </div>
   </div>
   <div id="setSettingsWarning" class="hint" style="display:none;background:var(--red-bg);color:var(--red);font-weight:700;"></div>
   <div class="btn-row"><button class="btn btn-primary" onclick="confirmSaveSettings()">Save settings</button></div>
@@ -1708,6 +1717,7 @@ function openSettings(){
   document.getElementById('setShopAddress').value = shopAddress();
   document.getElementById('setShopLat').value = appSettings.shopLat || '';
   document.getElementById('setShopLon').value = appSettings.shopLon || '';
+  refreshVerifyLinks();
   const warn = document.getElementById('setSettingsWarning');
   if(!backendSupportsSettings){
     warn.style.display = 'block';
@@ -1750,7 +1760,8 @@ async function lookupShopAddress(){
       document.getElementById('setShopLat').value = parseFloat(rows[0].lat).toFixed(6);
       document.getElementById('setShopLon').value = parseFloat(rows[0].lon).toFixed(6);
       out.innerHTML = '\u2713 Found: ' + escapeHtml(rows[0].display_name || addr) +
-        '<br>Check that looks right, then Save. If it\u2019s wrong, use <b>Pick on map</b>.';
+        '<br>Confirm it below in Google or Apple Maps, then Save.';
+      refreshVerifyLinks();
     } else {
       out.innerHTML = "Couldn\u2019t find that address. Try adding the ZIP code, or use <b>Pick on map</b> to tap your yard directly.";
     }
@@ -1782,6 +1793,23 @@ async function startShopPicker(){
     showToast('Shop location set');
   });
 }
+
+/* Point the three "check this spot" links at the coordinates currently
+   typed in, so the address can be confirmed against a service you trust
+   before it's saved. */
+function refreshVerifyLinks(){
+  const row = document.getElementById('setVerifyRow');
+  const la = parseFloat(document.getElementById('setShopLat').value);
+  const lo = parseFloat(document.getElementById('setShopLon').value);
+  if(isNaN(la) || isNaN(lo)){ row.style.display='none'; return; }
+  row.style.display = 'block';
+  document.getElementById('vfyGoogle').href = `https://www.google.com/maps/search/?api=1&query=${la},${lo}`;
+  document.getElementById('vfyApple').href  = `https://maps.apple.com/?ll=${la},${lo}&q=Shop`;
+  document.getElementById('vfyOsm').href    = `https://www.openstreetmap.org/?mlat=${la}&mlon=${lo}#map=18/${la}/${lo}`;
+}
+document.addEventListener('input', e=>{
+  if(e.target.id==='setShopLat' || e.target.id==='setShopLon') refreshVerifyLinks();
+});
 
 async function saveSettings(){
   if(!backendSupportsSettings){
