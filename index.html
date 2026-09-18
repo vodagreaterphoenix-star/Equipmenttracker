@@ -3488,6 +3488,10 @@ function mapLabelFor(it){
 }
 function mapGroups(){
   const g = {};
+  // The shop is always on the map, even with nothing in it. It's the base of
+  // operations and a place techs need to navigate back to, so it shouldn't
+  // appear and disappear depending on whether equipment happens to be there.
+  g['Shop'] = { label:'Shop', address: shopAddress(), items: [], overdue: 0, isShop: true };
   visibleInventory().forEach(it=>{
     if(it.status === 'Retired') return;
     const label = mapLabelFor(it);
@@ -3599,9 +3603,12 @@ async function renderMap(){
     if(!pt){ unplotted.push(g); return; }
     plotted += g.items.length;
     const cls = 'map-pin' + (g.overdue?' has-overdue':'') + (g.isShop?' is-shop':'');
-    const icon = L.divIcon({ className:'', html:`<div class="${cls}">${g.items.length}</div>`,
+    const face = g.items.length ? g.items.length : (g.isShop ? '&#8962;' : '0');
+    const icon = L.divIcon({ className:'', html:`<div class="${cls}">${face}</div>`,
                              iconSize:[28,28], iconAnchor:[14,14] });
-    const list = g.items.slice(0,40).map(i=>`${escapeHtml(i.id)} · ${escapeHtml(i.type)}${isOverdue(i)?' ⚠':''}`).join('<br>');
+    const list = g.items.length
+      ? g.items.slice(0,40).map(i=>`${escapeHtml(i.id)} · ${escapeHtml(i.type)}${isOverdue(i)?' ⚠':''}`).join('<br>')
+      : '<i>Nothing here right now.</i>';
     const more = g.items.length>40 ? `<br>…and ${g.items.length-40} more` : '';
     const dist = myPosition ? ` · ${mapDistanceMi(myPosition, pt).toFixed(1)} mi away` : '';
     L.marker([pt.lat,pt.lon],{icon})
