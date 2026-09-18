@@ -1758,8 +1758,13 @@ async function lookupShopAddress(){
   btn.setAttribute('disabled','disabled');
   out.textContent = 'Looking up that address…';
   try{
-    const res  = await fetch(MAP_CFG.GEOCODE_URL + encodeURIComponent(addr));
-    const rows = await res.json();
+    let rows = [];
+    for(const variant of mapAddressVariants(addr)){
+      const res = await fetch(MAP_CFG.GEOCODE_URL + encodeURIComponent(variant));
+      rows = await res.json();
+      if(rows && rows.length) break;
+      await new Promise(r=>setTimeout(r, MAP_CFG.GEOCODE_DELAY_MS));
+    }
     if(rows && rows.length){
       document.getElementById('setShopLat').value = parseFloat(rows[0].lat).toFixed(6);
       document.getElementById('setShopLon').value = parseFloat(rows[0].lon).toFixed(6);
@@ -3678,6 +3683,17 @@ let myPosition = null;              // {lat, lon} once the user allows it
 
 function mapNorm(a){ return (a||'').trim().toLowerCase().replace(/\s+/g,' '); }
 
+/* Forms of an address to try, in order. Most geocoders choke on suite and
+   unit numbers, which don't affect where the pin goes anyway. */
+function mapAddressVariants(addr){
+  const out = [addr];
+  const noUnit = addr
+    .replace(/[,\s]*(#|suite|ste\.?|unit|apt\.?|bldg\.?|building)\s*[\w-]+/ig,'')
+    .replace(/\s{2,}/g,' ').replace(/\s*,\s*,/g,',').trim();
+  if(noUnit && noUnit !== addr) out.push(noUnit);
+  return out;
+}
+
 /* The shop's exact position. If shopLat/shopLon are set in the Settings tab
    they are used directly and the address is never looked up — this is the
    reliable way to pin the shop exactly where it really is. Otherwise the
@@ -3742,16 +3758,23 @@ async function mapGeocodeMissing(addresses){
   if(btn) btn.setAttribute('disabled','disabled');
   let found = 0;
   for(const addr of todo){
-    try{
-      const res = await fetch(MAP_CFG.GEOCODE_URL + encodeURIComponent(addr));
-      const rows = await res.json();
-      if(rows && rows.length){
-        geocache[addr] = { lat: parseFloat(rows[0].lat), lon: parseFloat(rows[0].lon) };
-        found++;
-      } else {
-        geocache[addr] = null;      // remembered as "couldn't find"
-      }
-    }catch(e){ console.error('geocode failed', addr, e); break; }
+    let hit = null;
+    // Try the address as written, then progressively simpler forms. Suite and
+    // unit numbers are the usual reason a perfectly good address won't resolve,
+    // so they get stripped on the second attempt.
+    for(const variant of mapAddressVariants(addr)){
+      try{
+        const res = await fetch(MAP_CFG.GEOCODE_URL + encodeURIComponent(variant));
+        const rows = await res.json();
+        if(rows && rows.length){
+          hit = { lat: parseFloat(rows[0].lat), lon: parseFloat(rows[0].lon) };
+          break;
+        }
+      }catch(e){ console.error('geocode failed', variant, e); }
+      await new Promise(r=>setTimeout(r, MAP_CFG.GEOCODE_DELAY_MS));
+    }
+    geocache[addr] = hit;           // null is remembered as "couldn't find"
+    if(hit) found++;
     await new Promise(r=>setTimeout(r, MAP_CFG.GEOCODE_DELAY_MS));
   }
   if(btn) btn.removeAttribute('disabled');
