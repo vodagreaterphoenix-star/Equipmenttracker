@@ -503,18 +503,43 @@ nav.bottom .navbtn.scanbtn{color:var(--cyan-dark);}
 .history-item .h-time{color:var(--muted);font-size:11px;margin-top:1px;}
 
 /* scan */
-.scan-wrap{position:relative;border-radius:16px;overflow:hidden;background:#000;aspect-ratio:3/4;max-height:52vh;}
-.scan-wrap video,.scan-wrap #scanReader{width:100%;height:100%;object-fit:cover;}
-.scan-wrap #scanReader video{width:100%!important;height:100%!important;object-fit:cover;}
-.scan-wrap #scanReader img{display:none;} /* hide the library's default flash/torch icon graphics we don't use */
+.scan-wrap{
+  position:relative;border-radius:16px;overflow:hidden;background:#000;
+  aspect-ratio:3/4;max-height:52vh;width:100%;margin:0 auto;
+}
+/* The scanner library injects its own wrapper and video. Pin both to fill
+   the box and centre the picture, or the preview sits off to one side. */
+.scan-wrap #scanReader{
+  position:absolute;inset:0;width:100%!important;height:100%!important;
+  border:none!important;padding:0!important;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;
+}
+.scan-wrap #scanReader video{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:100%!important;height:100%!important;
+  min-width:100%;min-height:100%;object-fit:cover;display:block;
+}
+/* The library draws its own grey corner brackets and a shaded mask. We have
+   our own cyan frame, and two frames at different sizes read as misaligned,
+   so the library's is hidden. */
+.scan-wrap #scanReader__scan_region,
+.scan-wrap #qr-shaded-region,
+.scan-wrap #scanReader__dashboard{ display:none!important; }
+.scan-wrap #scanReader img{display:none;} /* library's flash/torch graphics we don't use */
 .scan-frame{
-  position:absolute;inset:16%;border:2.5px solid var(--cyan);border-radius:18px;
+  /* A centred square, sized off the shorter side, so it sits dead centre on
+     a phone, a tablet and a desktop window alike. */
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:min(68%, 52vh);aspect-ratio:1/1;
+  border:2.5px solid var(--cyan);border-radius:18px;
   box-shadow:0 0 0 2000px rgba(0,0,0,0.35);
   transition:border-color .15s, box-shadow .15s;
+  pointer-events:none;
 }
 .scan-frame.scan-hit{
   border-color:var(--green);
   box-shadow:0 0 0 2000px rgba(0,0,0,0.35), 0 0 24px 4px var(--green);
+  transform:translate(-50%,-50%) scale(1.02);
 }
 .scan-frame.scan-miss{
   border-color:var(--red);
@@ -3467,7 +3492,12 @@ async function openScan(mode){
     statusTxt.textContent = modeMsg;
     await scannerInstance.start(
       { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 230, height: 230 } },
+      // Scan box sized from the actual preview, so it lines up with the
+      // cyan frame on any screen instead of being a fixed 230px square.
+      { fps: 10, qrbox: (vw, vh) => {
+          const side = Math.round(Math.min(vw, vh) * 0.68);
+          return { width: side, height: side };
+        }, aspectRatio: 0.75 },
       (decodedText) => {
         if(isContinuous){ handleContinuousScan(decodedText); }
         else { handleScanResult(decodedText); }
