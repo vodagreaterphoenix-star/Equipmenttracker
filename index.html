@@ -247,6 +247,8 @@ nav.bottom{
   bottom:0;left:0;right:0;
   background:#fff;border-top:1px solid var(--line);
   display:flex;justify-content:space-around;align-items:flex-end;
+  /* position:fixed already makes this the containing block for the
+     absolutely-positioned scan button — no position:relative needed. */
   /* max() keeps a sensible pad on devices with no home indicator, and clears
      the indicator on the ones that have it. */
   padding:8px 6px max(8px, env(safe-area-inset-bottom));
@@ -271,7 +273,10 @@ nav.bottom .navbtn{
 nav.bottom .navbtn svg{width:21px;height:21px;stroke:var(--muted);}
 nav.bottom .navbtn.active{color:var(--cyan-dark);}
 nav.bottom .navbtn.active svg{stroke:var(--cyan-dark);}
-nav.bottom{ align-items:flex-end; position:relative; }
+/* NOTE: nav.bottom's positioning lives in ONE rule above (position:fixed).
+   A second nav.bottom rule here previously re-declared position:relative,
+   which overrode it and dropped the dock into the page flow. Only add
+   properties here that aren't about position. */
 nav.bottom .navbtn{ justify-content:flex-end; }
 /* The scan button is centred on the bar itself rather than relying on its
    position in the list, so it stays dead centre however many tabs exist.
