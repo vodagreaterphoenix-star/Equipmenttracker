@@ -4012,16 +4012,22 @@ async function renderMap(){
     const more = g.items.length>40 ? `<br>…and ${g.items.length-40} more` : '';
     const dist = myPosition ? ` · ${mapDistanceMi(myPosition, pt).toFixed(1)} mi away` : '';
     const shopTools = g.isShop ? `
-          <div class="map-nav-row" style="margin-top:5px;">
-            <a href="#" onclick="openSettings();return false;" style="background:#0A1F3D;">Edit shop</a>
-            <a class="g" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${pt.lat},${pt.lon}">Look up</a>
-          </div>` : '';
+      <div class="map-nav-row" style="margin-top:5px;">
+        <a href="#" onclick="openSettings();return false;">Edit shop</a>
+         <a class="g" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${pt.lat},${pt.lon}">Look up</a>
+      </div>` : '';
+    // "More info": a jobsite pin opens that job's screen; the shop pin opens
+    // Inventory filtered to what's in the shop.
+    const moreInfo = g.isShop
+      ? `<div class="map-nav-row" style="margin-top:5px;"><a href="#" onclick="mapObj.closePopup();switchView('inventory');setStatusFilter('Shop');return false;">More info</a></div>`
+      : `<div class="map-nav-row" style="margin-top:5px;"><a href="#" onclick="mapObj.closePopup();openClientDetail(decodeURIComponent('${encodeURIComponent(g.label)}'));return false;">More info</a></div>`;
     L.marker([pt.lat,pt.lon],{icon})
       .bindPopup(`<div class="map-pop">
           <div class="nm">${escapeHtml(g.label)}</div>
           <div class="ad">${escapeHtml(g.address)}${dist}</div>
           <div class="it">${list}${more}</div>
           ${mapNavLinks(pt.lat, pt.lon, g.label)}
+          ${moreInfo}
           ${shopTools}
         </div>`)
       .addTo(mapMarkers);
