@@ -706,6 +706,68 @@ body.modal-open #mapCanvas{ visibility:hidden; }
 }
 .map-unplotted .row .why{color:var(--muted);font-size:11.5px;flex-shrink:0;}
 /* ===== END MAP FEATURE (CSS) ===== */
+
+/* ===== BEGIN CONSUMABLES FEATURE (CSS) — added 2026-09-22 =====
+   Shop supplies that aren't serialised or tracked to a job: bags, poly,
+   tape, zippers. Delete this block, the CONSUMABLES HTML block and the
+   CONSUMABLES JAVASCRIPT block to remove the feature. ===== */
+.con-card{
+  background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:12px 13px;margin-bottom:8px;
+}
+.con-top{display:flex;align-items:flex-start;gap:11px;}
+.con-ic{
+  width:34px;height:34px;border-radius:9px;background:var(--blue-bg);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.con-ic svg{width:17px;height:17px;stroke:var(--blue);}
+.con-body{flex:1;min-width:0;}
+.con-name{font-weight:700;font-size:13.5px;}
+.con-meta{font-size:11.5px;color:var(--muted);margin-top:2px;}
+.con-qty-wrap{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.con-qty{font-size:19px;font-weight:800;min-width:30px;text-align:center;line-height:1;}
+.con-step{
+  -webkit-appearance:none;appearance:none;
+  width:30px;height:30px;border-radius:8px;flex-shrink:0;
+  background:var(--gray-bg);border:1px solid var(--line);color:var(--ink);
+  font-size:17px;font-weight:700;line-height:1;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;padding:0;
+}
+.con-step:active{opacity:.7;}
+.con-step[disabled]{opacity:.35;pointer-events:none;}
+.con-bar-wrap{background:var(--gray-bg);border-radius:6px;height:5px;margin-top:9px;overflow:hidden;}
+.con-bar{height:100%;border-radius:6px;background:var(--green);transition:width .2s;}
+.con-bar.low{background:var(--red);}
+.con-bar.order{background:var(--amber);}
+.con-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+.con-acts button{
+  -webkit-appearance:none;appearance:none;
+  background:var(--gray-bg);color:var(--ink);border:1px solid var(--line);
+  border-radius:8px;padding:6px 11px;font-size:11.5px;font-weight:700;cursor:pointer;
+}
+.con-acts button.go{background:var(--blue-bg);color:var(--blue);border-color:transparent;}
+.con-acts button.recv{background:var(--green-bg);color:var(--green);border-color:transparent;}
+.con-acts button.danger{background:var(--red-bg);color:var(--red);border-color:transparent;}
+.badge.lowstock{background:var(--red-bg);color:var(--red);}
+.badge.onorder{background:var(--amber-bg);color:var(--amber);}
+.badge.instock{background:var(--green-bg);color:var(--green);}
+/* Printed tables: plain black on white, no theme colours. */
+.con-print{display:none;}
+@media print{
+  body.printing-reports .con-print,
+  body.printing-overlay .con-print{ display:block !important; }
+  .con-print table{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px;}
+  .con-print th,.con-print td{
+    border:1px solid #000;padding:5px 7px;text-align:left;color:#000;background:#fff;
+  }
+  .con-print th{font-weight:700;background:#eee !important;}
+  .con-print td.num{text-align:right;}
+  .con-print h3{font-size:13px;margin:16px 0 4px;color:#000;}
+  /* Controls, steppers and action buttons never print. */
+  .con-acts, .con-step, .con-qty-wrap button,
+  #conAddBtn, .con-bar-wrap{ display:none !important; }
+}
+/* ===== END CONSUMABLES FEATURE (CSS) ===== */
 </style>
 </head>
 <body>
@@ -799,7 +861,17 @@ body.modal-open #mapCanvas{ visibility:hidden; }
       <input id="searchInput" placeholder="Search asset ID, model, job site, tech..." oninput="renderInventory()">
     </div>
     <div class="chip-row" id="statusChips"></div>
+    <div class="section-title" style="margin-top:2px;">Equipment (tracked)</div>
     <div id="inventoryList"></div>
+
+    <!-- ===== BEGIN CONSUMABLES FEATURE (HTML) — added 2026-09-22 ===== -->
+    <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">
+      <span>Consumables &amp; supplies</span>
+      <button class="export-btn" id="conAddBtn" onclick="openAddConsumable()">+ Add supply</button>
+    </div>
+    <div id="conLowBanner"></div>
+    <div id="consumablesList"></div>
+    <!-- ===== END CONSUMABLES FEATURE (HTML) ===== -->
   </div>
 
   <!-- ACTIVITY -->
@@ -881,6 +953,9 @@ body.modal-open #mapCanvas{ visibility:hidden; }
       <div class="section-title">Overdue</div>
       <div id="reportOverdue"></div>
     </div>
+
+    <!-- CONSUMABLES: only rendered on paper; the live list lives on Inventory -->
+    <div id="reportConsumables"></div>
   </div>
 
   <!-- Formal Fleet Report -->
@@ -1548,6 +1623,55 @@ body.modal-open #mapCanvas{ visibility:hidden; }
 </div></div>
 <!-- ===== END SETTINGS FEATURE (HTML) ===== -->
 
+<!-- ===== BEGIN CONSUMABLES FEATURE (MODALS) ===== -->
+<div class="overlay" id="modalConsumable"><div class="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <div><div class="sheet-title" id="conFormTitle">Add supply</div><div class="sheet-sub">Shop stock that isn't tracked to a job</div></div>
+    <button class="close-x" onclick="closeModal('modalConsumable')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div class="field">
+    <label>What is it?</label>
+    <input id="conName" placeholder="e.g. Heavy duty trash bags">
+  </div>
+  <div class="field">
+    <label>Counted in</label>
+    <input list="conUnitList" id="conUnit" placeholder="e.g. boxes, rolls, each">
+    <datalist id="conUnitList">
+      <option value="boxes"><option value="rolls"><option value="each">
+      <option value="cases"><option value="bags"><option value="gallons">
+    </datalist>
+  </div>
+  <div class="field">
+    <label>How many now?</label>
+    <input id="conQty" type="number" min="0" step="1" value="0">
+  </div>
+  <div class="field">
+    <label>Reorder when it drops to</label>
+    <input id="conMinQty" type="number" min="0" step="1" value="5">
+    <div class="hint">At or below this number it's flagged LOW STOCK on the Inventory tab.</div>
+  </div>
+  <div class="btn-row"><button class="btn btn-primary" onclick="confirmSaveConsumable()">Save supply</button></div>
+  <div id="conDeleteWrap" style="display:none;margin-top:14px;">
+    <button class="btn btn-ghost" style="width:100%;color:var(--red);" onclick="deleteConsumable()">Delete this supply</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="modalConOrder"><div class="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <div><div class="sheet-title">Log an order</div><div class="sheet-sub" id="conOrderSub">—</div></div>
+    <button class="close-x" onclick="closeModal('modalConOrder')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div class="field">
+    <label>How many on order?</label>
+    <input id="conOrderQty" type="number" min="1" step="1">
+    <div class="hint" id="conOrderHint">This doesn't change your shop count yet. Tap <b>Receive</b> when it actually arrives.</div>
+  </div>
+  <div class="btn-row"><button class="btn btn-amber" onclick="confirmLogOrder()">Mark as on order</button></div>
+</div></div>
+<!-- ===== END CONSUMABLES FEATURE (MODALS) ===== -->
+
 <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span id="toastMsg"></span></div>
 
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -1663,6 +1787,14 @@ async function loadData(silent){
       }
     } else {
       (data.clients||[]).forEach(c=>{ if(c.name) clientAddresses[c.name] = c.address||''; });
+    }
+
+    /* CONSUMABLES: shop supplies live in their own tab, never in `inventory` */
+    backendSupportsConsumables = data.consumables!==undefined;
+    consumables = (data.consumables||[]).filter(c=>c && c.name);
+    if(!backendSupportsConsumables && !window._warnedNoConsumables){
+      window._warnedNoConsumables = true;
+      showToast('Supplies won\'t save yet — update your Apps Script backend');
     }
 
     /* MAP FEATURE: read saved address coordinates (start) */
@@ -1985,6 +2117,7 @@ function renderAll(){
   renderLocations();
   renderRecentlyDeleted();
   renderClientsList();
+  renderConsumables();   // CONSUMABLES
 }
 
 function renderStats(){
@@ -2824,6 +2957,7 @@ function generateFleetReportHtml(){
     html += `</div>`;
   }
 
+  html += consumablesPrintHtml();   // CONSUMABLES: stock, shopping list, on order
   html += `<div class="report-footer">Generated by Voda Equipment Tracker &middot; ${fmtDate(todayStr())}</div>`;
   return html;
 }
@@ -2899,6 +3033,9 @@ function renderReports(){
   }).join('');
 
   // --- Overdue ---
+  const conWrap = document.getElementById('reportConsumables');   // CONSUMABLES
+  if(conWrap) conWrap.innerHTML = consumablesPrintHtml();
+
   const overdueWrap = document.getElementById('reportOverdue');
   const overdueItems = visibleInventory().filter(isOverdue).sort((a,b)=>(a.expectedReturnDate||'').localeCompare(b.expectedReturnDate||''));
   if(overdueItems.length===0){
@@ -4194,6 +4331,287 @@ function mapFlyTo(lat, lon){
   document.getElementById('mapCanvas').scrollIntoView({behavior:'smooth', block:'center'});
 }
 /* ===== END MAP FEATURE (JAVASCRIPT) ===== */
+
+/* ===== BEGIN CONSUMABLES FEATURE (JAVASCRIPT) — added 2026-09-22 ========
+   Shop supplies that are used up rather than returned: bags, poly, tape,
+   zippers. They are deliberately kept in their OWN array, not in
+   `inventory`, for two reasons:
+
+     1. `type` in this app already means the equipment category
+        ("Dehumidifier", "Air Mover"), so it can't also mean
+        "equipment vs consumable" without breaking the Inventory
+        grouping and the by-type reports.
+     2. The map, the pickup/return checklists, the scanner and the fleet
+        stats all iterate `inventory`. Keeping consumables out of that
+        array means they can never appear in any of them — no filtering
+        to write, and none to forget later.
+
+   TOUCHES OUTSIDE THIS BLOCK — each marked "CONSUMABLES:"
+     1. A short insert in loadData() that reads the Consumables tab.
+     2. One line in renderAll().
+     3. The Consumables section in the Inventory view.
+     4. Print tables in the two formal reports.
+   ==================================================================== */
+let consumables = [];
+let backendSupportsConsumables = true;
+let editingConsumableId = null;
+let orderingConsumableId = null;
+
+/* Status is derived, never stored — so it can't drift out of step with
+   the numbers. On order wins, because that's the actionable state. */
+function conStatus(c){
+  if(Number(c.orderedQty) > 0) return 'On Order';
+  if(Number(c.qty) <= Number(c.minQty)) return 'Low Stock';
+  return 'In Shop';
+}
+function conBadge(c){
+  const s = conStatus(c);
+  const cls = s==='Low Stock' ? 'lowstock' : s==='On Order' ? 'onorder' : 'instock';
+  return `<span class="badge ${cls}">${s==='Low Stock'?'LOW STOCK':s}</span>`;
+}
+function conIsLow(c){ return Number(c.qty) <= Number(c.minQty); }
+
+async function saveConsumables(){
+  if(!backendSupportsConsumables){
+    showToast("Supplies are saved on this device only — update your Apps Script backend");
+    return;
+  }
+  setSyncing(true);
+  try{
+    await apiPost('saveConsumables', consumables);
+    setSyncing(false);
+  }catch(e){ console.error('save consumables failed', e); setSyncing(false, true); }
+}
+
+function renderConsumables(){
+  const list = document.getElementById('consumablesList');
+  if(!list) return;
+  const banner = document.getElementById('conLowBanner');
+
+  if(consumables.length === 0){
+    list.innerHTML = `<div class="empty">No supplies tracked yet. Tap <b>+ Add supply</b> to start.</div>`;
+    if(banner) banner.innerHTML = '';
+    return;
+  }
+
+  // Anything at or below its reorder point, and not already on the way.
+  const low = consumables.filter(c=>conIsLow(c) && !(Number(c.orderedQty)>0));
+  if(banner){
+    banner.innerHTML = low.length ? `<div class="banner banner-amber" style="margin-bottom:10px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8A5A00" stroke-width="2.2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+      <span>Reorder: ${low.map(c=>escapeHtml(c.name)).join(', ')}</span>
+    </div>` : '';
+  }
+
+  // Needs-attention first, then alphabetical.
+  const sorted = [...consumables].sort((a,b)=>{
+    const rank = c => conStatus(c)==='Low Stock' ? 0 : conStatus(c)==='On Order' ? 1 : 2;
+    return rank(a)-rank(b) || a.name.localeCompare(b.name);
+  });
+
+  list.innerHTML = sorted.map(c=>{
+    const qty = Number(c.qty)||0, min = Number(c.minQty)||0, ord = Number(c.orderedQty)||0;
+    // Full bar at twice the reorder point, so the bar means "how much
+    // headroom above the minimum", not a share of some arbitrary maximum.
+    const pct = Math.max(4, Math.min(100, Math.round((qty / Math.max(1, min*2)) * 100)));
+    const barCls = conIsLow(c) ? (ord>0 ? 'order' : 'low') : '';
+    const unit = escapeHtml(c.unit||'');
+    return `<div class="con-card">
+      <div class="con-top">
+        <div class="con-ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18l-1.6 12.2a2 2 0 0 1-2 1.8H6.6a2 2 0 0 1-2-1.8Z"/><path d="M8 7V5a4 4 0 0 1 8 0v2"/></svg></div>
+        <div class="con-body">
+          <div class="con-name">${escapeHtml(c.name)}</div>
+          <div class="con-meta">${conBadge(c)} &nbsp;Reorder at ${min} ${unit}${ord>0?` &middot; ${ord} ${unit} on order`:''}</div>
+        </div>
+        <div class="con-qty-wrap">
+          <button class="con-step" onclick="adjustConsumable('${c.id}',-1)" ${qty<=0?'disabled':''} aria-label="One less">&minus;</button>
+          <div class="con-qty">${qty}</div>
+          <button class="con-step" onclick="adjustConsumable('${c.id}',1)" aria-label="One more">+</button>
+        </div>
+      </div>
+      <div class="con-bar-wrap"><div class="con-bar ${barCls}" style="width:${pct}%"></div></div>
+      <div class="con-acts">
+        ${ord>0
+          ? `<button class="recv" onclick="receiveOrder('${c.id}')">Receive ${ord} ${unit}</button>
+             <button onclick="cancelOrder('${c.id}')">Cancel order</button>`
+          : `<button class="go" onclick="openLogOrder('${c.id}')">Log order</button>`}
+        <button onclick="openEditConsumable('${c.id}')">Edit</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* --- stock adjustments ---------------------------------------------- */
+async function adjustConsumable(id, delta){
+  const c = consumables.find(x=>x.id===id);
+  if(!c) return;
+  const next = Math.max(0, (Number(c.qty)||0) + delta);
+  if(next === Number(c.qty)) return;
+  const wasLow = conIsLow(c);
+  c.qty = next;
+  renderConsumables();
+  await saveConsumables();
+  if(!wasLow && conIsLow(c) && !(Number(c.orderedQty)>0)){
+    showToast(`${c.name} is down to ${c.qty} ${c.unit||''} — time to reorder`);
+  }
+}
+
+/* --- add / edit ------------------------------------------------------ */
+function openAddConsumable(){
+  editingConsumableId = null;
+  document.getElementById('conFormTitle').textContent = 'Add supply';
+  document.getElementById('conName').value = '';
+  document.getElementById('conUnit').value = '';
+  document.getElementById('conQty').value = 0;
+  document.getElementById('conMinQty').value = 5;
+  document.getElementById('conDeleteWrap').style.display = 'none';
+  openModal('modalConsumable');
+}
+function openEditConsumable(id){
+  const c = consumables.find(x=>x.id===id);
+  if(!c) return;
+  editingConsumableId = id;
+  document.getElementById('conFormTitle').textContent = 'Edit supply';
+  document.getElementById('conName').value = c.name||'';
+  document.getElementById('conUnit').value = c.unit||'';
+  document.getElementById('conQty').value = Number(c.qty)||0;
+  document.getElementById('conMinQty').value = Number(c.minQty)||0;
+  document.getElementById('conDeleteWrap').style.display = 'block';
+  openModal('modalConsumable');
+}
+async function confirmSaveConsumable(){
+  const name = document.getElementById('conName').value.trim();
+  if(!name){ showToast('Give the supply a name'); return; }
+  const qty = Math.max(0, parseInt(document.getElementById('conQty').value,10) || 0);
+  const minQty = Math.max(0, parseInt(document.getElementById('conMinQty').value,10) || 0);
+  const unit = document.getElementById('conUnit').value.trim();
+
+  if(editingConsumableId){
+    const c = consumables.find(x=>x.id===editingConsumableId);
+    if(c){ c.name=name; c.qty=qty; c.minQty=minQty; c.unit=unit; }
+  } else {
+    const dup = consumables.some(c=>c.name.toLowerCase()===name.toLowerCase());
+    if(dup){ showToast(`${name} is already on the list`); return; }
+    consumables.push({
+      id: 'CON-' + String(Date.now()).slice(-8),
+      name, qty, minQty, unit, orderedQty: 0,
+      created: new Date().toISOString()
+    });
+  }
+  closeModal('modalConsumable');
+  renderConsumables();
+  await saveConsumables();
+  showToast(editingConsumableId ? `${name} updated` : `${name} added`);
+  editingConsumableId = null;
+}
+async function deleteConsumable(){
+  const c = consumables.find(x=>x.id===editingConsumableId);
+  if(!c) return;
+  if(!confirm(`Remove ${c.name} from the supply list?`)) return;
+  consumables = consumables.filter(x=>x.id!==editingConsumableId);
+  editingConsumableId = null;
+  closeModal('modalConsumable');
+  renderConsumables();
+  await saveConsumables();
+  showToast(`${c.name} removed`);
+}
+
+/* --- ordering -------------------------------------------------------- */
+function openLogOrder(id){
+  const c = consumables.find(x=>x.id===id);
+  if(!c) return;
+  orderingConsumableId = id;
+  document.getElementById('conOrderSub').textContent =
+    `${c.name} — ${c.qty} ${c.unit||''} in shop, reorder at ${c.minQty}`;
+  // Suggest enough to land at twice the reorder point.
+  const suggest = Math.max(1, (Number(c.minQty)||0)*2 - (Number(c.qty)||0));
+  document.getElementById('conOrderQty').value = suggest;
+  openModal('modalConOrder');
+}
+async function confirmLogOrder(){
+  const c = consumables.find(x=>x.id===orderingConsumableId);
+  if(!c) return;
+  const n = parseInt(document.getElementById('conOrderQty').value,10);
+  if(!n || n<1){ showToast('How many are on order?'); return; }
+  c.orderedQty = n;
+  c.orderedOn = new Date().toISOString();
+  closeModal('modalConOrder');
+  renderConsumables();
+  await saveConsumables();
+  showToast(`${n} ${c.unit||''} of ${c.name} marked on order`);
+  orderingConsumableId = null;
+}
+async function receiveOrder(id){
+  const c = consumables.find(x=>x.id===id);
+  if(!c) return;
+  const n = Number(c.orderedQty)||0;
+  if(n<1) return;
+  c.qty = (Number(c.qty)||0) + n;          // stock goes up by what arrived
+  c.orderedQty = 0;                        // nothing outstanding now
+  delete c.orderedOn;
+  c.lastReceived = new Date().toISOString();
+  renderConsumables();                     // status re-derives itself
+  await saveConsumables();
+  showToast(`${n} ${c.unit||''} received — ${c.name} now ${c.qty}`);
+}
+async function cancelOrder(id){
+  const c = consumables.find(x=>x.id===id);
+  if(!c) return;
+  if(!confirm(`Cancel the order for ${c.name}? Your shop count doesn't change.`)) return;
+  c.orderedQty = 0;
+  delete c.orderedOn;
+  renderConsumables();
+  await saveConsumables();
+  showToast('Order cancelled');
+}
+
+/* --- printed tables --------------------------------------------------- */
+function consumablesPrintHtml(){
+  if(!consumables.length) return '';
+  const rows = [...consumables].sort((a,b)=>a.name.localeCompare(b.name));
+  const onOrder = rows.filter(c=>Number(c.orderedQty)>0);
+  const toBuy   = rows.filter(c=>conIsLow(c) && !(Number(c.orderedQty)>0));
+
+  let html = `<div class="con-print">
+    <h3>Shop Supplies — Stock Count</h3>
+    <table>
+      <tr><th>Supply</th><th>Unit</th><th class="num">In shop</th><th class="num">Reorder at</th><th>Status</th></tr>
+      ${rows.map(c=>`<tr>
+        <td>${escapeHtml(c.name)}</td>
+        <td>${escapeHtml(c.unit||'')}</td>
+        <td class="num">${Number(c.qty)||0}</td>
+        <td class="num">${Number(c.minQty)||0}</td>
+        <td>${conStatus(c)}</td>
+      </tr>`).join('')}
+    </table>`;
+
+  if(toBuy.length){
+    html += `<h3>Shopping List — At or Below Reorder Point</h3>
+    <table>
+      <tr><th>Supply</th><th class="num">In shop</th><th class="num">Reorder at</th><th class="num">Suggested order</th></tr>
+      ${toBuy.map(c=>{
+        const sug = Math.max(1,(Number(c.minQty)||0)*2-(Number(c.qty)||0));
+        return `<tr><td>${escapeHtml(c.name)}</td><td class="num">${Number(c.qty)||0}</td><td class="num">${Number(c.minQty)||0}</td><td class="num">${sug} ${escapeHtml(c.unit||'')}</td></tr>`;
+      }).join('')}
+    </table>`;
+  }
+
+  if(onOrder.length){
+    html += `<h3>On Order — Awaiting Delivery</h3>
+    <table>
+      <tr><th>Supply</th><th class="num">On order</th><th>Ordered</th><th class="num">In shop now</th></tr>
+      ${onOrder.map(c=>`<tr>
+        <td>${escapeHtml(c.name)}</td>
+        <td class="num">${Number(c.orderedQty)} ${escapeHtml(c.unit||'')}</td>
+        <td>${c.orderedOn? fmtDate(c.orderedOn.slice(0,10)) : '—'}</td>
+        <td class="num">${Number(c.qty)||0}</td>
+      </tr>`).join('')}
+    </table>`;
+  }
+  return html + `</div>`;
+}
+/* ===== END CONSUMABLES FEATURE (JAVASCRIPT) ===== */
+
 </script>
 <script>
 if('serviceWorker' in navigator){
