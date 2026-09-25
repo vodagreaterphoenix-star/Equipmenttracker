@@ -1723,7 +1723,8 @@ body.modal-open #mapCanvas{ visibility:hidden; }
   </div>
   <div class="field">
     <label>What is it?</label>
-    <input id="conName" placeholder="e.g. Heavy duty trash bags">
+    <select id="conNameSelect" onchange="onConNameSelect()"></select>
+    <input id="conName" placeholder="Type the name" style="margin-top:8px;display:none;">
   </div>
   <div class="field">
     <label>Counted in</label>
@@ -4658,11 +4659,107 @@ async function adjustConsumable(id, delta){
 }
 
 /* --- add / edit ------------------------------------------------------ */
+/* The shop's standard lists, offered as a dropdown so names stay
+   consistent — "Trash Bags" and "trash bags" would otherwise become two
+   separate lines that each look half-stocked. Anything not here can still
+   be added with "Something else…". Edit these arrays to change the menu. */
+const KNOWN_SUPPLIES = {
+  consumable: [
+    "Plastic 10ft x 100ft 4mil",
+    "Plastic 20ft x 100ft 4mil",
+    "Plastic 10ft x 100ft 6mil",
+    "Plastic 20ft x 100ft 6mil",
+    "Vital Oxide & IAQ",
+    "Rags",
+    "Teal and Blue Tape",
+    "Trash Bags",
+    "Tyvek Suits",
+    "Filters P100",
+    "N95",
+    "Square Filters"
+  ],
+  loadout: [
+    "Spray Bottle",
+    "Toolbox",
+    "Vacuum, Hose, & Filter",
+    "Hammer Jack",
+    "Heavy Bars",
+    "Half Masks",
+    "Ladder",
+    "Orbital Sander",
+    "Power Tool Batteries",
+    "Battery Chargers",
+    "Razor Scrapers",
+    "Floor Buffer",
+    "Broom and Dustpan",
+    "Ozone"
+  ]
+};
+/* Units that go with the standard names, so the unit box fills itself. */
+const SUPPLY_UNITS = {
+  "Plastic 10ft x 100ft 4mil":"rolls","Plastic 20ft x 100ft 4mil":"rolls",
+  "Plastic 10ft x 100ft 6mil":"rolls","Plastic 20ft x 100ft 6mil":"rolls",
+  "Vital Oxide & IAQ":"gallons","Rags":"bags","Teal and Blue Tape":"rolls",
+  "Trash Bags":"boxes","Tyvek Suits":"each","Filters P100":"pairs",
+  "N95":"boxes","Square Filters":"each"
+};
+
+/* Fills the dropdown for the chosen list. Anything already tracked is
+   left out, so you can't add a second "Trash Bags" by accident. */
+function fillSupplyDropdown(selected){
+  const sel = document.getElementById('conNameSelect');
+  if(!sel) return;
+  const taken = new Set(consumables
+    .filter(c=>c.id !== editingConsumableId)
+    .map(c=>String(c.name).toLowerCase()));
+  const known = KNOWN_SUPPLIES[conFormCat] || [];
+  const opts = known.filter(n=>!taken.has(n.toLowerCase()));
+  // Keep the current name in the list when editing, even if it's custom.
+  if(selected && !opts.some(n=>n.toLowerCase()===String(selected).toLowerCase())
+     && known.some(n=>n.toLowerCase()===String(selected).toLowerCase())){
+    opts.unshift(selected);
+  }
+  const isCustom = selected && !opts.some(n=>n===selected);
+  sel.innerHTML =
+    `<option value="">Choose from the list…</option>` +
+    opts.map(n=>`<option value="${escapeHtml(n)}"${n===selected?' selected':''}>${escapeHtml(n)}</option>`).join('') +
+    `<option value="__other"${isCustom?' selected':''}>Something else…</option>`;
+  const other = document.getElementById('conName');
+  other.style.display = isCustom ? 'block' : 'none';
+  other.value = isCustom ? selected : '';
+}
+
+/* "Something else…" reveals the text box; a standard name fills the unit. */
+function onConNameSelect(){
+  const sel = document.getElementById('conNameSelect');
+  const other = document.getElementById('conName');
+  if(sel.value === '__other'){
+    other.style.display = 'block';
+    other.value = '';
+    other.focus();
+    return;
+  }
+  other.style.display = 'none';
+  other.value = '';
+  const unit = SUPPLY_UNITS[sel.value] || (conFormCat === 'loadout' ? 'each' : '');
+  const unitBox = document.getElementById('conUnit');
+  if(unit && !unitBox.value.trim()) unitBox.value = unit;
+}
+
+/* The name the form is actually submitting. */
+function conFormName(){
+  const sel = document.getElementById('conNameSelect');
+  return sel.value === '__other' || sel.value === ''
+    ? document.getElementById('conName').value.trim()
+    : sel.value;
+}
+
 let conFormCat = 'consumable';
 function setConCat(cat){
   conFormCat = cat === 'loadout' ? 'loadout' : 'consumable';
   document.getElementById('conCatCons').classList.toggle('active', conFormCat==='consumable');
   document.getElementById('conCatLoad').classList.toggle('active', conFormCat==='loadout');
+  fillSupplyDropdown(null);
 }
 function openAddConsumable(cat){
   editingConsumableId = null;
@@ -4670,6 +4767,7 @@ function openAddConsumable(cat){
   document.getElementById('conFormTitle').textContent = 'Add supply';
   document.getElementById('conName').value = '';
   document.getElementById('conUnit').value = '';
+  fillSupplyDropdown(null);
   document.getElementById('conQty').value = 0;
   document.getElementById('conMinQty').value = conDefaultMin();
   document.getElementById('conDeleteWrap').style.display = 'none';
@@ -4681,7 +4779,7 @@ function openEditConsumable(id){
   editingConsumableId = id;
   setConCat(conCat(c));
   document.getElementById('conFormTitle').textContent = 'Edit item';
-  document.getElementById('conName').value = c.name||'';
+  fillSupplyDropdown(c.name||'');
   document.getElementById('conUnit').value = c.unit||'';
   document.getElementById('conQty').value = Number(c.qty)||0;
   document.getElementById('conMinQty').value = Number(c.minQty)||0;
@@ -4689,8 +4787,8 @@ function openEditConsumable(id){
   openModal('modalConsumable');
 }
 async function confirmSaveConsumable(){
-  const name = document.getElementById('conName').value.trim();
-  if(!name){ showToast('Give the supply a name'); return; }
+  const name = conFormName();
+  if(!name){ showToast('Pick an item from the list, or choose "Something else…"'); return; }
   const qty = Math.max(0, parseInt(document.getElementById('conQty').value,10) || 0);
   const minQty = Math.max(0, parseInt(document.getElementById('conMinQty').value,10) || 0);
   const unit = document.getElementById('conUnit').value.trim();
