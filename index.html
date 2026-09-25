@@ -1145,7 +1145,8 @@ body.modal-open #mapCanvas{ visibility:hidden; }
     <div class="help-step"><div class="n">2</div><div><div class="t">Watch for the LOW STOCK badge</div><div class="d">Anything at or below its reorder point turns red and appears in the amber reorder strip at the top of the section.</div></div></div>
     <div class="help-step"><div class="n">3</div><div><div class="t">Ordered more? Tap "Log order"</div><div class="d">Enter how many are coming. The item shows as On Order so nobody orders it twice. Your shop count doesn't change yet.</div></div></div>
     <div class="help-step"><div class="n">4</div><div><div class="t">When it arrives, tap "Receive"</div><div class="d">That adds the delivery to your shop count and clears the order.</div></div></div>
-    <div class="help-bullet"><b>+ Add supply</b> — name it, say what it's counted in (boxes, rolls, each), the count now, and the number to reorder at.</div>
+    <div class="help-p">There are two lists here. <b>Consumables</b> are used up and don't come back — plastic, tape, Vital Oxide, filters, Tyvek suits, trash bags. <b>Loadouts</b> are tools and gear that ride on the truck and return — toolbox, ladder, floor buffer, half masks, batteries. Both are counted the same way; they're split so nobody scrolls past ladders looking for trash bags.</div>
+    <div class="help-bullet"><b>+ Add supply</b> — pick which list it belongs to, name it, say what it's counted in (boxes, rolls, each), the count now, and the number to reorder at.</div>
     <div class="help-bullet"><b>Consumables</b> (Home screen) opens the same list with a summary across the top — how many supplies you track, how many need reordering, how many are on order — plus a print button for the shopping list.</div>
     <div class="help-bullet">Each supply has its own reorder point. Change it with <b>Edit</b> on that supply. The Consumables screen also sets the default for anything added later, and an early-warning buffer if you'd rather be told before you actually hit the reorder point.</div>
     <div class="hint">Printing a report includes three supply tables: full stock count, a shopping list of everything at or below its reorder point with suggested quantities, and anything still on order.</div>
@@ -1681,7 +1682,7 @@ body.modal-open #mapCanvas{ visibility:hidden; }
     </div>
   </div>
 
-  <div class="stat-row" id="supStatRow" style="padding:0 0 12px;"></div>
+  <div class="stat-row" id="supStatRow" style="padding:0 0 12px;grid-template-columns:repeat(4,1fr);"></div>
 
   <div class="section-title" style="margin-top:0;display:flex;align-items:center;justify-content:space-between;">
     <span>Supplies</span>
@@ -1711,6 +1712,14 @@ body.modal-open #mapCanvas{ visibility:hidden; }
   <div class="sheet-head">
     <div><div class="sheet-title" id="conFormTitle">Add supply</div><div class="sheet-sub">Shop stock that isn't tracked to a job</div></div>
     <button class="close-x" onclick="closeModal('modalConsumable')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div class="field">
+    <label>Which list?</label>
+    <div class="seg" id="conCatSeg">
+      <button type="button" id="conCatCons" onclick="setConCat('consumable')">Consumable</button>
+      <button type="button" id="conCatLoad" onclick="setConCat('loadout')">Loadout</button>
+    </div>
+    <div class="hint">Consumables get used up. Loadouts are tools and gear that come back.</div>
   </div>
   <div class="field">
     <label>What is it?</label>
@@ -1761,7 +1770,14 @@ body.modal-open #mapCanvas{ visibility:hidden; }
 /* ============ DATA / STORAGE ============ */
 const SEED = [];
 
-const TYPE_PREFIX = { "Dehumidifier":"DH", "Air Scrubber":"AS", "Air Mover":"A", "Tension Pole":"TP" };
+/* Serialised equipment types and their ID prefixes. Add a type here to
+   give it its own numbering; anything not listed gets initials. */
+const TYPE_PREFIX = {
+  "Dehumidifier":"DH", "Air Scrubber":"AS", "Air Mover":"A",
+  "Tension Pole":"TP", "Spider Box":"SB", "Extension Cable":"EC"
+};
+/* Offered in the type box even before any unit of that type exists. */
+const KNOWN_TYPES = ["Air Scrubber","Dehumidifier","Air Mover","Tension Pole","Spider Box","Extension Cable"];
 const KNOWN_TECHS = []; // add your own team from within the app (Manage Personnel)
 const MARK_B64 = "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";
 
@@ -3569,8 +3585,8 @@ function openAddItem(){
   document.getElementById('addModel').value='';
   document.getElementById('addSerial').value='';
   document.getElementById('addPurchase').value='';
-  const types = [...new Set(inventory.map(i=>i.type))];
-  document.getElementById('typeList').innerHTML = types.map(t=>`<option value="${t}">`).join('');
+  const types = [...new Set([...KNOWN_TYPES, ...inventory.map(i=>i.type)])].filter(Boolean).sort();
+  document.getElementById('typeList').innerHTML = types.map(t=>`<option value="${escapeHtml(t)}">`).join('');
   openModal('modalAdd');
 }
 function previewNextId(){
@@ -3613,8 +3629,8 @@ function openEditItem(id){
   const it = inventory.find(i=>i.id===id);
   if(!it) return;
   currentDetailId = id;
-  const types = [...new Set(inventory.map(i=>i.type))];
-  document.getElementById('typeList').innerHTML = types.map(t=>`<option value="${t}">`).join('');
+  const types = [...new Set([...KNOWN_TYPES, ...inventory.map(i=>i.type)])].filter(Boolean).sort();
+  document.getElementById('typeList').innerHTML = types.map(t=>`<option value="${escapeHtml(t)}">`).join('');
   document.getElementById('editType').value = it.type || '';
   document.getElementById('editId').value = it.id;
   document.getElementById('editModel').value = it.model || '';
@@ -4486,6 +4502,13 @@ function conBadge(c){
   const cls = s==='Low Stock' ? 'lowstock' : s==='On Order' ? 'onorder' : 'instock';
   return `<span class="badge ${cls}">${s==='Low Stock'?'LOW STOCK':s}</span>`;
 }
+/* 'consumable' = used up and not returned. 'loadout' = tools and PPE that
+   go out on a truck and come back. Same counting and ordering mechanics,
+   shown as two sections so a tech isn't scrolling past ladders to find
+   trash bags. Older records with no cat are treated as consumables. */
+function conCat(c){ return c && c.cat === 'loadout' ? 'loadout' : 'consumable'; }
+function conList(cat){ return consumables.filter(c=>conCat(c)===cat); }
+
 function conIsLow(c){
   // At or below the reorder point, plus whatever early-warning buffer the
   // shop has set, so you're told before you're actually short.
@@ -4541,7 +4564,8 @@ function renderConsumables(){
     const low = consumables.filter(c=>conIsLow(c)).length;
     const onOrder = consumables.filter(c=>Number(c.orderedQty)>0).length;
     statRow.innerHTML = `
-      <div class="stat-card-light"><div class="n">${consumables.length}</div><div class="l">Supplies</div></div>
+      <div class="stat-card-light"><div class="n">${conList('consumable').length}</div><div class="l">Consumables</div></div>
+      <div class="stat-card-light"><div class="n">${conList('loadout').length}</div><div class="l">Loadouts</div></div>
       <div class="stat-card-light ${low?'alert':''}"><div class="n">${low}</div><div class="l">Need reorder</div></div>
       <div class="stat-card-light"><div class="n">${onOrder}</div><div class="l">On order</div></div>`;
   }
@@ -4573,7 +4597,7 @@ function renderConsumables(){
     return rank(a)-rank(b) || a.name.localeCompare(b.name);
   });
 
-  const cards = sorted.map(c=>{
+  const cardFor = c=>{
     const qty = Number(c.qty)||0, min = Number(c.minQty)||0, ord = Number(c.orderedQty)||0;
     // Full bar at twice the reorder point, so the bar means "how much
     // headroom above the minimum", not a share of some arbitrary maximum.
@@ -4602,7 +4626,19 @@ function renderConsumables(){
         <button onclick="openEditConsumable('${c.id}')">Edit</button>
       </div>
     </div>`;
-  }).join('');
+  };
+
+  // Two sections, each with its own heading and count.
+  const section = (cat, title, blurb)=>{
+    const rows = sorted.filter(c=>conCat(c)===cat);
+    if(!rows.length) return '';
+    return `<div class="section-title" style="margin-top:14px;">${title} (${rows.length})</div>
+      <div class="hint" style="margin-top:0;margin-bottom:8px;">${blurb}</div>` +
+      rows.map(cardFor).join('');
+  };
+  const cards =
+    section('consumable','Consumables','Used up on jobs and not returned — plastic, tape, filters, PPE.') +
+    section('loadout','Loadouts','Tools and gear that ride on the truck and come back — count what you have on hand.');
   paint(list, cards); paint(list2, cards);
 }
 
@@ -4622,8 +4658,15 @@ async function adjustConsumable(id, delta){
 }
 
 /* --- add / edit ------------------------------------------------------ */
-function openAddConsumable(){
+let conFormCat = 'consumable';
+function setConCat(cat){
+  conFormCat = cat === 'loadout' ? 'loadout' : 'consumable';
+  document.getElementById('conCatCons').classList.toggle('active', conFormCat==='consumable');
+  document.getElementById('conCatLoad').classList.toggle('active', conFormCat==='loadout');
+}
+function openAddConsumable(cat){
   editingConsumableId = null;
+  setConCat(cat || 'consumable');
   document.getElementById('conFormTitle').textContent = 'Add supply';
   document.getElementById('conName').value = '';
   document.getElementById('conUnit').value = '';
@@ -4636,7 +4679,8 @@ function openEditConsumable(id){
   const c = consumables.find(x=>x.id===id);
   if(!c) return;
   editingConsumableId = id;
-  document.getElementById('conFormTitle').textContent = 'Edit supply';
+  setConCat(conCat(c));
+  document.getElementById('conFormTitle').textContent = 'Edit item';
   document.getElementById('conName').value = c.name||'';
   document.getElementById('conUnit').value = c.unit||'';
   document.getElementById('conQty').value = Number(c.qty)||0;
@@ -4653,12 +4697,13 @@ async function confirmSaveConsumable(){
 
   if(editingConsumableId){
     const c = consumables.find(x=>x.id===editingConsumableId);
-    if(c){ c.name=name; c.qty=qty; c.minQty=minQty; c.unit=unit; }
+    if(c){ c.name=name; c.qty=qty; c.minQty=minQty; c.unit=unit; c.cat=conFormCat; }
   } else {
     const dup = consumables.some(c=>c.name.toLowerCase()===name.toLowerCase());
     if(dup){ showToast(`${name} is already on the list`); return; }
     consumables.push({
       id: 'CON-' + String(Date.now()).slice(-8),
+      cat: conFormCat,
       name, qty, minQty, unit, orderedQty: 0,
       created: new Date().toISOString()
     });
@@ -4738,11 +4783,12 @@ function consumablesPrintHtml(){
   const toBuy   = rows.filter(c=>conIsLow(c) && !(Number(c.orderedQty)>0));
 
   let html = `<div class="con-print">
-    <h3>Shop Supplies — Stock Count</h3>
+    <h3>Shop Stock Count — Consumables &amp; Loadouts</h3>
     <table>
-      <tr><th>Supply</th><th>Unit</th><th class="num">In shop</th><th class="num">Reorder at</th><th>Status</th></tr>
+      <tr><th>Item</th><th>List</th><th>Unit</th><th class="num">In shop</th><th class="num">Reorder at</th><th>Status</th></tr>
       ${rows.map(c=>`<tr>
         <td>${escapeHtml(c.name)}</td>
+        <td>${conCat(c)==='loadout'?'Loadout':'Consumable'}</td>
         <td>${escapeHtml(c.unit||'')}</td>
         <td class="num">${Number(c.qty)||0}</td>
         <td class="num">${Number(c.minQty)||0}</td>
