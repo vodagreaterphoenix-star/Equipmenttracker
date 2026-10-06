@@ -768,6 +768,56 @@ body.modal-open #mapCanvas{ visibility:hidden; }
   #conAddBtn, .con-bar-wrap{ display:none !important; }
 }
 /* ===== END CONSUMABLES FEATURE (CSS) ===== */
+
+/* ===== BEGIN CONSUMABLES BATCH WORKSHEET (CSS) =====
+   Every colour here is an app theme variable, so the worksheet follows
+   whatever the rest of the app is doing in light and dark mode. No
+   hard-coded hex values. ===== */
+.bw-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;}
+.bw-act{
+  -webkit-appearance:none;appearance:none;cursor:pointer;
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:14px 8px;text-align:center;color:var(--muted);
+  font-size:13px;font-weight:600;line-height:1.35;
+}
+.bw-act svg{width:20px;height:20px;stroke:currentColor;display:block;margin:0 auto 6px;}
+.bw-act.active{border:2px solid var(--blue);background:var(--blue-bg);color:var(--blue);padding:13px 7px;}
+.bw-prompt{font-size:13px;color:var(--muted);margin-bottom:9px;}
+.bw-wrap{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;}
+.bw-scroll{max-height:340px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.bw-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:13px;}
+.bw-table th{
+  position:sticky;top:0;z-index:2;
+  background:var(--gray-bg);color:var(--muted);
+  font-weight:600;font-size:13px;text-align:left;
+  padding:12px 8px;border-bottom:1px solid var(--line);
+}
+.bw-table td{padding:13px 8px;border-top:1px solid var(--line);color:var(--ink);vertical-align:middle;}
+.bw-table tr.on td{background:var(--blue-bg);}
+.bw-c-chk{width:40px;text-align:center;}
+.bw-c-have{width:62px;text-align:right;}
+.bw-c-qty{width:86px;text-align:right;}
+.bw-c-tot{width:70px;text-align:right;padding-right:18px !important;}
+.bw-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14.5px;font-weight:500;}
+.bw-unit{font-size:12px;color:var(--muted);margin-top:2px;}
+.bw-c-have, .bw-c-tot{font-size:14.5px;}
+.bw-chk{width:20px;height:20px;accent-color:var(--blue);cursor:pointer;}
+.bw-qty{
+  width:100%;max-width:72px;text-align:right;
+  border:1px solid var(--line);border-radius:9px;padding:8px 9px;
+  font-size:14.5px;font-family:inherit;background:var(--card);color:var(--ink);
+  -moz-appearance:textfield;
+}
+.bw-qty::-webkit-outer-spin-button,.bw-qty::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+.bw-qty:focus{outline:none;border-color:var(--cyan);}
+.bw-tot{font-weight:700;}
+.bw-tot.up{color:var(--green);}
+.bw-tot.down{color:var(--amber);}
+.bw-tot.bad{color:var(--red);}
+.bw-dash{color:var(--muted);}
+.bw-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--line);margin-top:12px;padding-top:12px;}
+.bw-count{font-size:13.5px;color:var(--muted);}
+/* ===== END CONSUMABLES BATCH WORKSHEET (CSS) ===== */
 </style>
 </head>
 <body>
@@ -1147,6 +1197,7 @@ body.modal-open #mapCanvas{ visibility:hidden; }
     <div class="help-step"><div class="n">4</div><div><div class="t">When it arrives, tap "Receive"</div><div class="d">That adds the delivery to your shop count and clears the order.</div></div></div>
     <div class="help-p">There are two lists here. <b>Consumables</b> are used up and don't come back — plastic, tape, Vital Oxide, filters, Tyvek suits, trash bags. <b>Loadouts</b> are tools and gear that ride on the truck and return — toolbox, ladder, floor buffer, half masks, batteries. Both are counted the same way; they're split so nobody scrolls past ladders looking for trash bags.</div>
     <div class="help-bullet"><b>+ Add supply</b> — pick which list it belongs to, name it, say what it's counted in (boxes, rolls, each), the count now, and the number to reorder at.</div>
+    <div class="help-p"><b>Moving several at once.</b> The Consumables screen opens with a worksheet at the top. Pick what you're doing — <b>Load to truck</b>, <b>Return to shop</b>, or <b>Receive shipment</b> — tick the items, type the quantities, and tap apply once. The Total column shows what each count becomes before you commit, and it won't let you load more than the shop has.</div>
     <div class="help-bullet"><b>Consumables</b> (Home screen) opens the same list with a summary across the top — how many supplies you track, how many need reordering, how many are on order — plus a print button for the shopping list.</div>
     <div class="help-bullet">Each supply has its own reorder point. Change it with <b>Edit</b> on that supply. The Consumables screen also sets the default for anything added later, and an early-warning buffer if you'd rather be told before you actually hit the reorder point.</div>
     <div class="hint">Printing a report includes three supply tables: full stock count, a shopping list of everything at or below its reorder point with suggested quantities, and anything still on order.</div>
@@ -1686,8 +1737,52 @@ body.modal-open #mapCanvas{ visibility:hidden; }
 
   <div class="section-title" style="margin-top:0;display:flex;align-items:center;justify-content:space-between;">
     <span>Supplies</span>
-    <button class="export-btn" onclick="openAddConsumable()">+ Add supply</button>
+    <button class="export-btn" onclick="openAddConsumable()">+ Add materials</button>
   </div>
+
+  <!-- ===== BEGIN BATCH WORKSHEET (HTML) ===== -->
+  <div class="section-title" style="margin-top:2px;">Move materials</div>
+  <div class="bw-prompt">What are you doing?</div>
+  <div class="bw-actions">
+    <button class="bw-act" id="bwActOut" onclick="bwSetMode('out')">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+      Load to truck
+    </button>
+    <button class="bw-act" id="bwActIn" onclick="bwSetMode('in')">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 7 7 17"/><path d="M16 17H7V8"/></svg>
+      Return to shop
+    </button>
+    <button class="bw-act active" id="bwActRecv" onclick="bwSetMode('recv')">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v8H3zM14 10h4l3 3v2h-7z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/></svg>
+      Receive shipment
+    </button>
+  </div>
+  <div class="field" id="bwVanWrap" style="display:none;margin-bottom:10px;">
+    <label id="bwVanLabel">Which truck?</label>
+    <select id="bwVan"></select>
+  </div>
+  <input id="bwSearch" placeholder="Filter the list…" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-size:13px;margin-bottom:10px;" oninput="bwRender()">
+  <div class="bw-wrap">
+    <div class="bw-scroll">
+      <table class="bw-table">
+        <thead><tr>
+          <th class="bw-c-chk"></th>
+          <th>Item</th>
+          <th class="bw-c-have">Have</th>
+          <th class="bw-c-qty" id="bwQtyHead">Receiving</th>
+          <th class="bw-c-tot">Total</th>
+        </tr></thead>
+        <tbody id="bwRows"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="bw-foot">
+    <span class="bw-count" id="bwCount">Nothing selected</span>
+    <button class="btn btn-cyan" style="width:auto;padding:0 18px;" id="bwApply" onclick="bwApply()">Apply</button>
+  </div>
+  <!-- ===== END BATCH WORKSHEET (HTML) ===== -->
+
+  <div class="section-title">Current stock</div>
   <div id="supLowBanner"></div>
   <div id="supList"></div>
 
@@ -4537,6 +4632,7 @@ function openSupplies(){
   document.getElementById('supDefaultMin').value  = conDefaultMin();
   document.getElementById('supWarnBuffer').value  = conWarnBuffer();
   renderConsumables();
+  bwSetMode(bwMode);          // paints the worksheet and the van picker
   openModal('modalSupplies');
 }
 async function saveSupplySettings(){
@@ -4919,6 +5015,165 @@ function consumablesPrintHtml(){
   }
   return html + `</div>`;
 }
+
+/* ===== BEGIN BATCH WORKSHEET (JAVASCRIPT) =========================
+   Tick several items, type quantities, apply once — instead of tapping
+   a stepper eleven times.
+
+   Three movements:
+     recv  shipment from the supplier   shop count goes UP
+     out   loading a truck              shop count goes DOWN
+     in    coming back off a truck      shop count goes UP
+
+   Only the shop count is stored. "Load to truck" records which van it
+   went to in the activity log, so you can see what each truck took,
+   but the app does not claim to know what is physically on a van right
+   now — nobody would keep that accurate. Change that later by giving
+   each item a per-location count.
+   ================================================================= */
+let bwMode = 'recv';
+let bwPicked = {};   // id -> quantity typed
+
+function bwSetMode(mode){
+  bwMode = mode;
+  ['out','in','recv'].forEach(m=>{
+    const el = document.getElementById('bwAct' + (m==='out'?'Out':m==='in'?'In':'Recv'));
+    if(el) el.classList.toggle('active', m===mode);
+  });
+  document.getElementById('bwQtyHead').textContent =
+    mode==='recv' ? 'Receiving' : mode==='out' ? 'To truck' : 'Back';
+  // The van picker only means something when stock is moving to or from one.
+  const wrap = document.getElementById('bwVanWrap');
+  wrap.style.display = (mode==='recv') ? 'none' : 'block';
+  document.getElementById('bwVanLabel').textContent =
+    mode==='out' ? 'Loading which truck?' : 'Coming back from which truck?';
+  const sel = document.getElementById('bwVan');
+  sel.innerHTML = customLocations.map(l=>`<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join('')
+    || '<option value="">No trucks set up yet</option>';
+  bwPicked = {};
+  bwRender();
+}
+
+/* What a row's count becomes if this batch is applied. */
+function bwResulting(c, n){
+  const have = Number(c.qty)||0;
+  return bwMode==='out' ? have - n : have + n;
+}
+
+function bwRender(){
+  const body = document.getElementById('bwRows');
+  if(!body) return;
+  const q = (document.getElementById('bwSearch').value||'').trim().toLowerCase();
+  const rows = [...consumables]
+    .filter(c=>!q || c.name.toLowerCase().includes(q))
+    .sort((a,b)=> conCat(a).localeCompare(conCat(b)) || a.name.localeCompare(b.name));
+
+  if(!rows.length){
+    body.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:22px;">Nothing matches that.</td></tr>`;
+    bwUpdateFooter();
+    return;
+  }
+
+  body.innerHTML = rows.map(c=>{
+    const on   = bwPicked[c.id] !== undefined;
+    const n    = Number(bwPicked[c.id])||0;
+    const have = Number(c.qty)||0;
+    const res  = on ? bwResulting(c, n) : have;
+    const bad  = res < 0;
+    const cls  = !on ? '' : bad ? 'bad' : (bwMode==='out' ? 'down' : 'up');
+    return `<tr class="${on?'on':''}">
+      <td class="bw-c-chk"><input type="checkbox" class="bw-chk" ${on?'checked':''} onchange="bwToggle('${c.id}',this.checked)"></td>
+      <td><div class="bw-name">${escapeHtml(c.name)}</div><div class="bw-unit">${escapeHtml(c.unit||'')} &middot; ${conCat(c)==='loadout'?'Loadout':'Consumable'}</div></td>
+      <td class="bw-c-have">${have}</td>
+      <td class="bw-c-qty">${on
+        ? `<input type="number" class="bw-qty" min="0" step="1" value="${n||''}" placeholder="0" inputmode="numeric" oninput="bwQty('${c.id}',this.value)">`
+        : `<span class="bw-dash">&mdash;</span>`}</td>
+      <td class="bw-c-tot"><span class="bw-tot ${cls}">${res}</span></td>
+    </tr>`;
+  }).join('');
+  bwUpdateFooter();
+}
+
+function bwToggle(id, on){
+  if(on) bwPicked[id] = '';
+  else delete bwPicked[id];
+  bwRender();
+}
+function bwQty(id, val){
+  bwPicked[id] = Math.max(0, parseInt(val,10) || 0);
+  // Repaint only the numbers, so typing doesn't lose focus mid-entry.
+  const rows = document.querySelectorAll('#bwRows tr');
+  let i = 0;
+  const list = [...consumables]
+    .filter(c=>{ const q=(document.getElementById('bwSearch').value||'').trim().toLowerCase(); return !q || c.name.toLowerCase().includes(q); })
+    .sort((a,b)=> conCat(a).localeCompare(conCat(b)) || a.name.localeCompare(b.name));
+  list.forEach(c=>{
+    const tr = rows[i++]; if(!tr) return;
+    const cell = tr.querySelector('.bw-tot'); if(!cell) return;
+    const on = bwPicked[c.id] !== undefined;
+    const n = Number(bwPicked[c.id])||0;
+    const res = on ? bwResulting(c, n) : (Number(c.qty)||0);
+    cell.textContent = res;
+    cell.className = 'bw-tot ' + (!on ? '' : res<0 ? 'bad' : (bwMode==='out'?'down':'up'));
+  });
+  bwUpdateFooter();
+}
+
+function bwUpdateFooter(){
+  const ids = Object.keys(bwPicked);
+  const units = ids.reduce((t,id)=>t + (Number(bwPicked[id])||0), 0);
+  const overdrawn = ids.filter(id=>{
+    const c = consumables.find(x=>x.id===id);
+    return c && bwResulting(c, Number(bwPicked[id])||0) < 0;
+  });
+  const label = { recv:'Receive', out:'Load', in:'Return' }[bwMode];
+  const count = document.getElementById('bwCount');
+  const btn   = document.getElementById('bwApply');
+  if(overdrawn.length){
+    count.innerHTML = `<span style="color:var(--red);font-weight:700;">More than the shop has</span>`;
+    btn.disabled = true;
+  } else if(!ids.length){
+    count.textContent = 'Nothing selected';
+    btn.disabled = true;
+  } else {
+    count.textContent = `${ids.length} item${ids.length!==1?'s':''} · ${units} unit${units!==1?'s':''}`;
+    btn.disabled = false;
+  }
+  btn.textContent = ids.length ? `${label} ${ids.length}` : label;
+}
+
+async function bwApply(){
+  const ids = Object.keys(bwPicked).filter(id=>(Number(bwPicked[id])||0) > 0);
+  if(!ids.length){ showToast('Enter a quantity first'); return; }
+  const van = document.getElementById('bwVan').value || '';
+  let moved = 0;
+  ids.forEach(id=>{
+    const c = consumables.find(x=>x.id===id);
+    if(!c) return;
+    const n = Number(bwPicked[id])||0;
+    const res = bwResulting(c, n);
+    if(res < 0) return;                 // guarded in the UI too, belt and braces
+    c.qty = res;
+    if(bwMode==='recv'){ c.orderedQty = 0; delete c.orderedOn; c.lastReceived = new Date().toISOString(); }
+    moved++;
+    // Logged against the equipment activity feed so there's a record of
+    // where supplies went, same as equipment moves.
+    addActivityEntry('moved',
+      { id: c.name, type: conCat(c)==='loadout'?'Loadout':'Consumable', jobsite:'', tech:'' },
+      bwMode==='recv' ? `Received ${n} ${c.unit||''}`.trim()
+      : bwMode==='out' ? `${n} ${c.unit||''} loaded to ${van}`.trim()
+      :                  `${n} ${c.unit||''} returned from ${van}`.trim());
+  });
+  bwPicked = {};
+  await saveActivity();
+  await saveConsumables();
+  renderConsumables();
+  bwRender();
+  const verb = bwMode==='recv' ? 'received' : bwMode==='out' ? `loaded to ${van}` : `returned from ${van}`;
+  showToast(`${moved} item${moved!==1?'s':''} ${verb}`);
+}
+/* ===== END BATCH WORKSHEET (JAVASCRIPT) ===== */
+
 /* ===== END CONSUMABLES FEATURE (JAVASCRIPT) ===== */
 
 </script>
