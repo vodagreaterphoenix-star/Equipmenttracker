@@ -385,7 +385,21 @@ nav.bottom .navbtn.scanbtn{color:var(--cyan-dark);}
   background:#fff;width:100%;max-width:640px;border-radius:20px 20px 0 0;
   max-height:92vh;overflow-y:auto;padding:6px 18px 24px;
   animation:slideup .22s ease-out;
+  /* A scrolling box draws its scrollbar INSIDE the border radius on
+     Windows and Linux, and that track is square — which squares off the
+     top-right corner while the left stays rounded. clip-path trims the
+     whole box, scrollbar included, so both corners match everywhere. */
+  clip-path: inset(0 round 20px 20px 0 0);
 }
+/* Slimmer, theme-aware scrollbar so it reads as part of the sheet. */
+.sheet::-webkit-scrollbar{width:10px;}
+.sheet::-webkit-scrollbar-track{background:transparent;}
+.sheet::-webkit-scrollbar-thumb{
+  background:var(--line);border-radius:99px;
+  border:3px solid transparent;background-clip:content-box;
+}
+.sheet::-webkit-scrollbar-thumb:hover{background:var(--gray);background-clip:content-box;}
+.sheet{scrollbar-width:thin;scrollbar-color:var(--line) transparent;}
 @keyframes slideup{from{transform:translateY(30px);opacity:0;}to{transform:translateY(0);opacity:1;}}
 .sheet-handle{width:38px;height:4px;background:var(--line);border-radius:99px;margin:10px auto 6px;}
 .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:6px 0 12px;}
@@ -3352,6 +3366,26 @@ function openModal(id){
   document.getElementById(id).classList.add('active');
   document.body.classList.add('modal-open');   // also parks the map canvas
 }
+
+/* Tapping the dark area outside a sheet drops it back to whatever was
+   behind it. The check is on event.target being the overlay itself, so a
+   tap that lands anywhere inside the sheet — including a drag that ends
+   outside it — doesn't dismiss anything by accident. */
+document.addEventListener('click', e=>{
+  const overlay = e.target;
+  if(!overlay.classList || !overlay.classList.contains('overlay')) return;
+  if(!overlay.classList.contains('active')) return;
+  if(overlay.id === 'modalScan'){ closeScan(); return; }   // also stops the camera
+  closeModal(overlay.id);
+});
+
+/* Escape closes the top-most sheet, for anyone on a keyboard. */
+document.addEventListener('keydown', e=>{
+  if(e.key !== 'Escape') return;
+  const open = [...document.querySelectorAll('.overlay.active')].pop();
+  if(!open) return;
+  if(open.id === 'modalScan') closeScan(); else closeModal(open.id);
+});
 function closeModal(id){
   document.getElementById(id).classList.remove('active');
   if(!document.querySelector('.overlay.active')) document.body.classList.remove('modal-open');
