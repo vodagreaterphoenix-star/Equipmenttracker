@@ -817,6 +817,21 @@ body.modal-open #mapCanvas{ visibility:hidden; }
 .bw-dash{color:var(--muted);}
 .bw-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--line);margin-top:12px;padding-top:12px;}
 .bw-count{font-size:13.5px;color:var(--muted);}
+/* Barcode chips on the supply form */
+.code-list{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px;}
+.code-chip{
+  display:flex;align-items:center;gap:6px;
+  background:var(--gray-bg);border:1px solid var(--line);border-radius:99px;
+  padding:5px 7px 5px 11px;font-size:12px;font-weight:600;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink);
+}
+.code-chip button{
+  -webkit-appearance:none;appearance:none;cursor:pointer;
+  width:19px;height:19px;border-radius:50%;flex-shrink:0;padding:0;
+  background:var(--red-bg);color:var(--red);border:none;
+  font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;
+}
+.code-empty{font-size:12px;color:var(--muted);margin-bottom:9px;}
 /* .btn carries flex:1, which stretches it across the footer. Pin it. */
 .bw-foot .btn{flex:0 0 auto;min-width:130px;}
 /* ===== END CONSUMABLES BATCH WORKSHEET (CSS) ===== */
@@ -1199,7 +1214,11 @@ body.modal-open #mapCanvas{ visibility:hidden; }
     <div class="help-step"><div class="n">4</div><div><div class="t">When it arrives, tap "Receive"</div><div class="d">That adds the delivery to your shop count and clears the order.</div></div></div>
     <div class="help-p">There are two lists here. <b>Consumables</b> are used up and don't come back — plastic, tape, Vital Oxide, filters, Tyvek suits, trash bags. <b>Loadouts</b> are tools and gear that ride on the truck and return — toolbox, ladder, floor buffer, half masks, batteries. Both are counted the same way; they're split so nobody scrolls past ladders looking for trash bags.</div>
     <div class="help-bullet"><b>+ Add supply</b> — pick which list it belongs to, name it, say what it's counted in (boxes, rolls, each), the count now, and the number to reorder at.</div>
-    <div class="help-p"><b>Scanning supplies.</b> Each supply can hold a barcode — either the manufacturer's UPC off the box, or your own label stuck to the shelf. Add it with the <b>Scan</b> button on that supply's edit screen. After that, tap <b>Scan items</b> on the worksheet and work along the rack: each scan ticks that item, and scanning the same thing twice counts two. Quantities can be typed afterwards.</div>
+    <div class="help-p"><b>Scanning supplies.</b> Each supply can hold <b>as many barcodes as you need</b>. That matters because the same product from two manufacturers has two different UPCs — 6 mil 10x100 plastic from one brand won't scan the same as another brand's. Put both codes on the one item and either box scans to it. Your own printed shelf labels work the same way.</div>
+    <div class="help-step"><div class="n">1</div><div><div class="t">Open the supply and tap Scan</div><div class="d">Point at the box. The code is added to its list. Repeat for each brand you buy.</div></div></div>
+    <div class="help-step"><div class="n">2</div><div><div class="t">Remove a code with the × on its chip</div><div class="d">Useful if a product is discontinued or a code was scanned by mistake.</div></div></div>
+    <div class="help-step"><div class="n">3</div><div><div class="t">Then use "Scan items" on the worksheet</div><div class="d">Work along the rack. Each scan ticks that item; scanning the same thing twice counts two. Type quantities afterwards if the counts differ.</div></div></div>
+    <div class="hint">A code can only belong to one supply. If you scan something already attached elsewhere, the app says which item has it rather than quietly moving it.</div>
     <div class="help-p"><b>Moving several at once.</b> The Consumables screen opens with a worksheet at the top. Pick what you're doing — <b>Load to truck</b>, <b>Return to shop</b>, or <b>Receive shipment</b> — tick the items, type the quantities, and tap apply once. The Total column shows what each count becomes before you commit, and it won't let you load more than the shop has.</div>
     <div class="help-bullet"><b>Consumables</b> (Home screen) opens the same list with a summary across the top — how many supplies you track, how many need reordering, how many are on order — plus a print button for the shopping list.</div>
     <div class="help-bullet">Each supply has its own reorder point. Change it with <b>Edit</b> on that supply. The Consumables screen also sets the default for anything added later, and an early-warning buffer if you'd rather be told before you actually hit the reorder point.</div>
@@ -1831,12 +1850,15 @@ body.modal-open #mapCanvas{ visibility:hidden; }
     <input id="conName" placeholder="Type the name" style="margin-top:8px;display:none;">
   </div>
   <div class="field">
-    <label>Barcode or UPC (optional)</label>
+    <label>Barcodes &amp; UPCs (optional)</label>
+    <div id="conCodeList" class="code-list"></div>
     <div style="display:flex;gap:8px;">
-      <input id="conBarcode" style="flex:1;" placeholder="Scan it, or type it in" autocapitalize="characters" spellcheck="false">
-      <button class="btn btn-ghost" style="width:auto;padding:0 14px;" onclick="openScanForSupplyCode()">Scan</button>
+      <input id="conBarcode" style="flex:1;" placeholder="Scan or type a code, then Add" autocapitalize="characters" spellcheck="false"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();addSupplyCode();}">
+      <button class="btn btn-ghost" style="width:auto;padding:0 12px;" onclick="openScanForSupplyCode()">Scan</button>
+      <button class="btn btn-cyan" style="width:auto;padding:0 14px;" onclick="addSupplyCode()">Add</button>
     </div>
-    <div class="hint">Either the manufacturer's UPC off the box, or your own label stuck on the shelf. Once it's saved, scanning that code finds this item.</div>
+    <div class="hint">Add as many as you like. The same product from two manufacturers has two different UPCs — put both here and either one scans to this item. Your own printed shelf labels can go here too.</div>
   </div>
   <div class="field">
     <label>Counted in</label>
@@ -3991,8 +4013,7 @@ function lookupCode(code){
      are handled before the equipment lookup. */
   if(scanMode === 'supplyCode'){
     closeScan();
-    document.getElementById('conBarcode').value = clean;
-    showToast('Code captured — save the supply to keep it');
+    addSupplyCode(clean);          // appends to the list, doesn't replace it
     return {ok:true, msg:clean};
   }
   if(scanMode === 'supplies'){
@@ -4883,6 +4904,42 @@ function conFormName(){
     : sel.value;
 }
 
+/* Codes being edited on the supply form. An item can carry several —
+   the same 6 mil plastic from two suppliers has two different UPCs. */
+let conFormCodes = [];
+
+function renderSupplyCodes(){
+  const wrap = document.getElementById('conCodeList');
+  if(!wrap) return;
+  wrap.innerHTML = conFormCodes.length
+    ? conFormCodes.map((code,i)=>`<span class="code-chip">${escapeHtml(code)}
+        <button onclick="removeSupplyCode(${i})" title="Remove this code" aria-label="Remove ${escapeHtml(code)}">&times;</button></span>`).join('')
+    : `<div class="code-empty">No codes yet. Scan a box or type a UPC below.</div>`;
+}
+function addSupplyCode(code){
+  const box = document.getElementById('conBarcode');
+  const raw = (typeof code === 'string' ? code : box.value).trim().toUpperCase();
+  if(!raw){ showToast('Scan or type a code first'); return; }
+  if(conFormCodes.includes(raw)){ showToast('That code is already on this item'); box.value=''; return; }
+  // A code can only ever point at one supply, or a scan is ambiguous.
+  const clash = consumables.find(c=>c.id !== editingConsumableId && supplyCodes(c).includes(raw));
+  if(clash){ showToast(`That code is already on ${clash.name}`); return; }
+  conFormCodes.push(raw);
+  box.value = '';
+  renderSupplyCodes();
+}
+function removeSupplyCode(i){
+  conFormCodes.splice(i,1);
+  renderSupplyCodes();
+}
+/* Every code an item answers to. Handles records saved before this was a
+   list, which carried a single `barcode` string. */
+function supplyCodes(c){
+  if(!c) return [];
+  if(Array.isArray(c.barcodes)) return c.barcodes.map(x=>String(x).toUpperCase());
+  return c.barcode ? [String(c.barcode).toUpperCase()] : [];
+}
+
 let conFormCat = 'consumable';
 function setConCat(cat){
   conFormCat = cat === 'loadout' ? 'loadout' : 'consumable';
@@ -4897,6 +4954,8 @@ function openAddConsumable(cat){
   document.getElementById('conName').value = '';
   document.getElementById('conUnit').value = '';
   document.getElementById('conBarcode').value = '';
+  conFormCodes = [];
+  renderSupplyCodes();
   fillSupplyDropdown(null);
   document.getElementById('conQty').value = 0;
   document.getElementById('conMinQty').value = conDefaultMin();
@@ -4911,7 +4970,9 @@ function openEditConsumable(id){
   document.getElementById('conFormTitle').textContent = 'Edit item';
   fillSupplyDropdown(c.name||'');
   document.getElementById('conUnit').value = c.unit||'';
-  document.getElementById('conBarcode').value = c.barcode||'';
+  document.getElementById('conBarcode').value = '';
+  conFormCodes = supplyCodes(c);
+  renderSupplyCodes();
   document.getElementById('conQty').value = Number(c.qty)||0;
   document.getElementById('conMinQty').value = Number(c.minQty)||0;
   document.getElementById('conDeleteWrap').style.display = 'block';
@@ -4923,24 +4984,23 @@ async function confirmSaveConsumable(){
   const qty = Math.max(0, parseInt(document.getElementById('conQty').value,10) || 0);
   const minQty = Math.max(0, parseInt(document.getElementById('conMinQty').value,10) || 0);
   const unit = document.getElementById('conUnit').value.trim();
-  const barcode = document.getElementById('conBarcode').value.trim().toUpperCase();
-  // One code can only point at one supply, or a scan is ambiguous.
-  if(barcode){
-    const clash = consumables.find(c=>c.id!==editingConsumableId &&
-      String(c.barcode||'').toUpperCase()===barcode);
-    if(clash){ showToast(`That code is already on ${clash.name}`); return; }
-  }
+  // Anything still sitting in the box when Save is tapped counts as added.
+  if(document.getElementById('conBarcode').value.trim()) addSupplyCode();
+  const barcodes = [...conFormCodes];
 
   if(editingConsumableId){
     const c = consumables.find(x=>x.id===editingConsumableId);
-    if(c){ c.name=name; c.qty=qty; c.minQty=minQty; c.unit=unit; c.cat=conFormCat; c.barcode=barcode; }
+    if(c){
+      c.name=name; c.qty=qty; c.minQty=minQty; c.unit=unit; c.cat=conFormCat;
+      c.barcodes = barcodes; delete c.barcode;   // upgrade the old single-code field
+    }
   } else {
     const dup = consumables.some(c=>c.name.toLowerCase()===name.toLowerCase());
     if(dup){ showToast(`${name} is already on the list`); return; }
     consumables.push({
       id: 'CON-' + String(Date.now()).slice(-8),
       cat: conFormCat,
-      name, qty, minQty, unit, barcode, orderedQty: 0,
+      name, qty, minQty, unit, barcodes, orderedQty: 0,
       created: new Date().toISOString()
     });
   }
@@ -5225,7 +5285,7 @@ function openScanForSupplyCode(){ openScan('supplyCode'); }
 
 function findSupplyByCode(code){
   const clean = String(code).trim().toUpperCase();
-  return consumables.find(c=>String(c.barcode||'').toUpperCase() === clean)
+  return consumables.find(c=>supplyCodes(c).includes(clean))
       || consumables.find(c=>String(c.name||'').toUpperCase() === clean)
       || null;
 }
