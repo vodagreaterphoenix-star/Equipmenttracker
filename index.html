@@ -817,6 +817,8 @@ body.modal-open #mapCanvas{ visibility:hidden; }
 .bw-dash{color:var(--muted);}
 .bw-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--line);margin-top:12px;padding-top:12px;}
 .bw-count{font-size:13.5px;color:var(--muted);}
+/* .btn carries flex:1, which stretches it across the footer. Pin it. */
+.bw-foot .btn{flex:0 0 auto;min-width:130px;}
 /* ===== END CONSUMABLES BATCH WORKSHEET (CSS) ===== */
 </style>
 </head>
@@ -1197,6 +1199,7 @@ body.modal-open #mapCanvas{ visibility:hidden; }
     <div class="help-step"><div class="n">4</div><div><div class="t">When it arrives, tap "Receive"</div><div class="d">That adds the delivery to your shop count and clears the order.</div></div></div>
     <div class="help-p">There are two lists here. <b>Consumables</b> are used up and don't come back — plastic, tape, Vital Oxide, filters, Tyvek suits, trash bags. <b>Loadouts</b> are tools and gear that ride on the truck and return — toolbox, ladder, floor buffer, half masks, batteries. Both are counted the same way; they're split so nobody scrolls past ladders looking for trash bags.</div>
     <div class="help-bullet"><b>+ Add supply</b> — pick which list it belongs to, name it, say what it's counted in (boxes, rolls, each), the count now, and the number to reorder at.</div>
+    <div class="help-p"><b>Scanning supplies.</b> Each supply can hold a barcode — either the manufacturer's UPC off the box, or your own label stuck to the shelf. Add it with the <b>Scan</b> button on that supply's edit screen. After that, tap <b>Scan items</b> on the worksheet and work along the rack: each scan ticks that item, and scanning the same thing twice counts two. Quantities can be typed afterwards.</div>
     <div class="help-p"><b>Moving several at once.</b> The Consumables screen opens with a worksheet at the top. Pick what you're doing — <b>Load to truck</b>, <b>Return to shop</b>, or <b>Receive shipment</b> — tick the items, type the quantities, and tap apply once. The Total column shows what each count becomes before you commit, and it won't let you load more than the shop has.</div>
     <div class="help-bullet"><b>Consumables</b> (Home screen) opens the same list with a summary across the top — how many supplies you track, how many need reordering, how many are on order — plus a print button for the shopping list.</div>
     <div class="help-bullet">Each supply has its own reorder point. Change it with <b>Edit</b> on that supply. The Consumables screen also sets the default for anything added later, and an early-warning buffer if you'd rather be told before you actually hit the reorder point.</div>
@@ -1737,7 +1740,7 @@ body.modal-open #mapCanvas{ visibility:hidden; }
 
   <div class="section-title" style="margin-top:0;display:flex;align-items:center;justify-content:space-between;">
     <span>Supplies</span>
-    <button class="export-btn" onclick="openAddConsumable()">+ Add materials</button>
+    <button class="export-btn" onclick="openAddConsumable()">+ Add supply</button>
   </div>
 
   <!-- ===== BEGIN BATCH WORKSHEET (HTML) ===== -->
@@ -1760,6 +1763,12 @@ body.modal-open #mapCanvas{ visibility:hidden; }
   <div class="field" id="bwVanWrap" style="display:none;margin-bottom:10px;">
     <label id="bwVanLabel">Which truck?</label>
     <select id="bwVan"></select>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:10px;">
+    <button class="map-btn" style="flex-shrink:0;" onclick="openScanForSupplies()">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+      Scan items
+    </button>
   </div>
   <input id="bwSearch" placeholder="Filter the list…" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-size:13px;margin-bottom:10px;" oninput="bwRender()">
   <div class="bw-wrap">
@@ -1820,6 +1829,14 @@ body.modal-open #mapCanvas{ visibility:hidden; }
     <label>What is it?</label>
     <select id="conNameSelect" onchange="onConNameSelect()"></select>
     <input id="conName" placeholder="Type the name" style="margin-top:8px;display:none;">
+  </div>
+  <div class="field">
+    <label>Barcode or UPC (optional)</label>
+    <div style="display:flex;gap:8px;">
+      <input id="conBarcode" style="flex:1;" placeholder="Scan it, or type it in" autocapitalize="characters" spellcheck="false">
+      <button class="btn btn-ghost" style="width:auto;padding:0 14px;" onclick="openScanForSupplyCode()">Scan</button>
+    </div>
+    <div class="hint">Either the manufacturer's UPC off the box, or your own label stuck on the shelf. Once it's saved, scanning that code finds this item.</div>
   </div>
   <div class="field">
     <label>Counted in</label>
@@ -3860,8 +3877,10 @@ async function openScan(mode){
   const lastResultEl = document.getElementById('scanLastResult');
   if(lastResultEl){ lastResultEl.className = 'scan-last-result'; lastResultEl.innerHTML = ''; }
   const statusTxt = document.getElementById('scanStatusTxt');
-  const isContinuous = ['clientReturn','jobKit','bulkMove'].includes(scanMode);
+  const isContinuous = ['clientReturn','jobKit','bulkMove','supplies'].includes(scanMode);
   const modeMsg = {
+    supplies: 'Scan each shelf label or box — they\'ll add to the worksheet as you go',
+    supplyCode: 'Point at the barcode you want to attach to this supply',
     clientReturn: 'Scan items one after another — they\'ll add to the return list as you go',
     jobKit: 'Scan items one after another — they\'ll add to this job kit as you go',
     bulkMove: 'Scan items one after another — they\'ll add to the move list as you go',
@@ -3954,7 +3973,7 @@ function manualLookup(){
   const code = document.getElementById('manualCode').value.trim();
   if(!code) return;
   document.getElementById('manualCode').value = '';
-  const isContinuous = ['clientReturn','jobKit','bulkMove'].includes(scanMode);
+  const isContinuous = ['clientReturn','jobKit','bulkMove','supplies'].includes(scanMode);
   if(isContinuous){
     const result = lookupCode(code); // camera keeps running — this is just an alternate way to add one item
     showScanLastResult(result);
@@ -3966,6 +3985,20 @@ function manualLookup(){
 }
 function lookupCode(code){
   const clean = code.trim().toUpperCase();
+
+  /* Supplies are matched on their own barcode/UPC, not on an asset ID,
+     and they live in a different list from equipment — so these two modes
+     are handled before the equipment lookup. */
+  if(scanMode === 'supplyCode'){
+    closeScan();
+    document.getElementById('conBarcode').value = clean;
+    showToast('Code captured — save the supply to keep it');
+    return {ok:true, msg:clean};
+  }
+  if(scanMode === 'supplies'){
+    return addScannedSupply(clean);
+  }
+
   const it = inventory.find(i=>i.id.toUpperCase()===clean || (i.barcode||'').toUpperCase()===clean);
   if(!it){
     const result = {ok:false, msg:`No match for "${code}"`};
@@ -4863,6 +4896,7 @@ function openAddConsumable(cat){
   document.getElementById('conFormTitle').textContent = 'Add supply';
   document.getElementById('conName').value = '';
   document.getElementById('conUnit').value = '';
+  document.getElementById('conBarcode').value = '';
   fillSupplyDropdown(null);
   document.getElementById('conQty').value = 0;
   document.getElementById('conMinQty').value = conDefaultMin();
@@ -4877,6 +4911,7 @@ function openEditConsumable(id){
   document.getElementById('conFormTitle').textContent = 'Edit item';
   fillSupplyDropdown(c.name||'');
   document.getElementById('conUnit').value = c.unit||'';
+  document.getElementById('conBarcode').value = c.barcode||'';
   document.getElementById('conQty').value = Number(c.qty)||0;
   document.getElementById('conMinQty').value = Number(c.minQty)||0;
   document.getElementById('conDeleteWrap').style.display = 'block';
@@ -4888,17 +4923,24 @@ async function confirmSaveConsumable(){
   const qty = Math.max(0, parseInt(document.getElementById('conQty').value,10) || 0);
   const minQty = Math.max(0, parseInt(document.getElementById('conMinQty').value,10) || 0);
   const unit = document.getElementById('conUnit').value.trim();
+  const barcode = document.getElementById('conBarcode').value.trim().toUpperCase();
+  // One code can only point at one supply, or a scan is ambiguous.
+  if(barcode){
+    const clash = consumables.find(c=>c.id!==editingConsumableId &&
+      String(c.barcode||'').toUpperCase()===barcode);
+    if(clash){ showToast(`That code is already on ${clash.name}`); return; }
+  }
 
   if(editingConsumableId){
     const c = consumables.find(x=>x.id===editingConsumableId);
-    if(c){ c.name=name; c.qty=qty; c.minQty=minQty; c.unit=unit; c.cat=conFormCat; }
+    if(c){ c.name=name; c.qty=qty; c.minQty=minQty; c.unit=unit; c.cat=conFormCat; c.barcode=barcode; }
   } else {
     const dup = consumables.some(c=>c.name.toLowerCase()===name.toLowerCase());
     if(dup){ showToast(`${name} is already on the list`); return; }
     consumables.push({
       id: 'CON-' + String(Date.now()).slice(-8),
       cat: conFormCat,
-      name, qty, minQty, unit, orderedQty: 0,
+      name, qty, minQty, unit, barcode, orderedQty: 0,
       created: new Date().toISOString()
     });
   }
@@ -5171,6 +5213,38 @@ async function bwApply(){
   bwRender();
   const verb = bwMode==='recv' ? 'received' : bwMode==='out' ? `loaded to ${van}` : `returned from ${van}`;
   showToast(`${moved} item${moved!==1?'s':''} ${verb}`);
+}
+/* --- scanning into the worksheet ------------------------------------
+   A tech standing at the rack scans each shelf label or box as they load
+   the truck, then types quantities once rather than hunting a 26-row
+   list on a phone. Matches the item's saved barcode/UPC first, then its
+   name, so a QR label you print yourself works as well as the
+   manufacturer's barcode. ------------------------------------------- */
+function openScanForSupplies(){ openScan('supplies'); }
+function openScanForSupplyCode(){ openScan('supplyCode'); }
+
+function findSupplyByCode(code){
+  const clean = String(code).trim().toUpperCase();
+  return consumables.find(c=>String(c.barcode||'').toUpperCase() === clean)
+      || consumables.find(c=>String(c.name||'').toUpperCase() === clean)
+      || null;
+}
+
+function addScannedSupply(code){
+  const c = findSupplyByCode(code);
+  if(!c){
+    return {ok:false, msg:`No supply has the code ${code}`};
+  }
+  if(bwPicked[c.id] !== undefined){
+    // Already on the sheet — count the scan as one more of it, which is
+    // what a tech throwing a second box on the truck actually means.
+    bwPicked[c.id] = (Number(bwPicked[c.id])||0) + 1;
+  } else {
+    bwPicked[c.id] = 1;
+  }
+  bwRender();
+  return {ok:true, msg:`${c.name} — ${bwPicked[c.id]} ${c.unit||''}`.trim(),
+          count:Object.keys(bwPicked).length};
 }
 /* ===== END BATCH WORKSHEET (JAVASCRIPT) ===== */
 
