@@ -379,7 +379,8 @@ nav.bottom .navbtn.scanbtn{color:var(--cyan-dark);}
   display:none;align-items:flex-end;justify-content:center;
 }
 .overlay.active{display:flex;}
-#modalScan{z-index:200;} /* scanner opens on top of Job Kit / Move / Return, which stay open underneath */
+#modalScan{z-index:200;}
+#modalAssign{z-index:250;} /* asks what an unknown code is — must clear the scanner */ /* scanner opens on top of Job Kit / Move / Return, which stay open underneath */
 #modalIn, #modalOut{z-index:150;} /* Check In / Check Out can open while a job page stays open underneath, same reasoning as modalScan above */
 .sheet{
   background:#fff;width:100%;max-width:640px;border-radius:20px 20px 0 0;
@@ -3982,6 +3983,7 @@ async function openScan(mode){
   scanMode = mode || 'lookup';
   lastScanCode = null;
   lastScanTime = 0;
+  pendingScan = null; pendingScanCount = 0;
   openModal('modalScan');
   document.getElementById('manualCode').value='';
   const lastResultEl = document.getElementById('scanLastResult');
@@ -4011,12 +4013,29 @@ async function openScan(mode){
     statusTxt.textContent = modeMsg;
     await scannerInstance.start(
       { facingMode: 'environment' },
-      // Scan box sized from the actual preview, so it lines up with the
-      // cyan frame on any screen instead of being a fixed 230px square.
-      { fps: 10, qrbox: (vw, vh) => {
+      {
+        fps: 10,
+        // Scan box sized from the actual preview, so it lines up with the
+        // cyan frame on any screen instead of being a fixed 230px square.
+        qrbox: (vw, vh) => {
           const side = Math.round(Math.min(vw, vh) * 0.68);
           return { width: side, height: side };
-        }, aspectRatio: 0.75 },
+        },
+        aspectRatio: 0.75,
+        // Only the symbologies that actually appear on product boxes and
+        // asset labels. Left unrestricted, the library will "resolve" a
+        // fragment of a barcode into a short nonsense string like 9552G6.
+        formatsToSupport: (typeof Html5QrcodeSupportedFormats !== 'undefined') ? [
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.ITF,
+          Html5QrcodeSupportedFormats.QR_CODE
+        ] : undefined
+      },
       (decodedText) => {
         if(isContinuous){ handleContinuousScan(decodedText); }
         else { handleScanResult(decodedText); }
@@ -4051,10 +4070,21 @@ function playBeep(ok){
     osc.stop(scanAudioCtx.currentTime + (ok?0.16:0.26));
   }catch(e){ /* audio not available — visual + haptic feedback still cover it */ }
 }
+/* A barcode half in frame can decode into a short, wrong string. Waiting
+   for two identical reads in a row costs a fraction of a second and
+   throws those away. */
+let pendingScan = null, pendingScanCount = 0;
+
 function handleContinuousScan(code){
   const now = Date.now();
   const clean = code.trim().toUpperCase();
   if(clean===lastScanCode && (now-lastScanTime)<SCAN_COOLDOWN_MS) return; // same label still in frame — ignore, camera keeps running
+
+  if(clean !== pendingScan){ pendingScan = clean; pendingScanCount = 1; return; }
+  pendingScanCount++;
+  if(pendingScanCount < 2) return;          // need it twice before trusting it
+  pendingScan = null; pendingScanCount = 0;
+
   lastScanCode = clean;
   lastScanTime = now;
   const result = lookupCode(code);
@@ -5514,8 +5544,12 @@ function addScannedSupply(code){
   if(!c){
     // Don't just reject it — a tech holding the box can say what it is,
     // and from then on the code is known. Beats walking back to Settings.
+    // Close the camera first: the scanner sits above every other sheet,
+    // so opening the assign sheet underneath it would hide the thing the
+    // tech is being asked to use.
+    closeScan();
     openAssignCode(code);
-    return {ok:false, msg:`${normCode(code)} isn't assigned yet — pick what it is`};
+    return {ok:false, msg:`${normCode(code)} isn't assigned yet`};
   }
   // How many units this particular barcode represents — one roll, or a
   // case of fifty. Scanning the same code twice adds the pack twice.
