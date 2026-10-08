@@ -1826,11 +1826,11 @@ body.modal-open #mapCanvas{ visibility:hidden; }
   <div class="bw-actions">
     <button class="bw-act" id="bwActOut" onclick="bwSetMode('out')">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
-      Load to truck
+      Send out
     </button>
     <button class="bw-act" id="bwActIn" onclick="bwSetMode('in')">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 7 7 17"/><path d="M16 17H7V8"/></svg>
-      Return to shop
+      Bring back
     </button>
     <button class="bw-act active" id="bwActRecv" onclick="bwSetMode('recv')">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v8H3zM14 10h4l3 3v2h-7z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/></svg>
@@ -4866,6 +4866,14 @@ function renderConsumables(){
     section('consumable','Consumables','Used up on jobs and not returned — plastic, tape, filters, PPE.') +
     section('loadout','Loadouts','Tools and gear that ride on the truck and come back — count what you have on hand.');
   paint(list, cards); paint(list2, cards);
+
+  /* The worksheet and the barcode manager both read this same list, and
+     both used to be painted only when their screen opened. If either was
+     opened before the first sync landed, it stayed empty while the cards
+     around it filled in. Refreshing them here means every screen that
+     shows supplies updates together, on every sync. */
+  if(typeof bwRender === 'function') bwRender();
+  if(typeof refreshCodeManager === 'function') refreshCodeManager();
 }
 
 /* --- stock adjustments ---------------------------------------------- */
@@ -5005,16 +5013,25 @@ function supplyPer(c, code){
    Codes are set up here rather than on each supply's edit form, because
    this is a one-off admin job: one person scans every box once, and from
    then on everyone else just scans to add stock. -------------------- */
-function openCodeManager(){
+/* Rebuilds the supply dropdown, keeping whatever was selected. Safe to
+   call at any time — it does nothing if the sheet isn't in the DOM. */
+function refreshCodeManager(){
   const sel = document.getElementById('cmSupply');
+  if(!sel) return;
+  const keep = sel.value;
   const sorted = [...consumables].sort((a,b)=>
     conCat(a).localeCompare(conCat(b)) || a.name.localeCompare(b.name));
   sel.innerHTML = sorted.length
     ? sorted.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}${conCat(c)==='loadout'?' (loadout)':''}</option>`).join('')
     : '<option value="">No supplies yet — add one first</option>';
+  if(keep && sorted.some(c=>c.id===keep)) sel.value = keep;
+  renderCodeManager();
+}
+
+function openCodeManager(){
   document.getElementById('cmCode').value = '';
   document.getElementById('cmPer').value = 1;
-  renderCodeManager();
+  refreshCodeManager();
   openModal('modalCodes');
 }
 
@@ -5301,15 +5318,25 @@ function bwSetMode(mode){
     if(el) el.classList.toggle('active', m===mode);
   });
   document.getElementById('bwQtyHead').textContent =
-    mode==='recv' ? 'Receiving' : mode==='out' ? 'To truck' : 'Back';
+    mode==='recv' ? 'Receiving' : mode==='out' ? 'Sending' : 'Back';
   // The van picker only means something when stock is moving to or from one.
   const wrap = document.getElementById('bwVanWrap');
   wrap.style.display = (mode==='recv') ? 'none' : 'block';
   document.getElementById('bwVanLabel').textContent =
-    mode==='out' ? 'Loading which truck?' : 'Coming back from which truck?';
+    mode==='out' ? 'Going where?' : 'Coming back from where?';
+  /* Where it's going, or where it came back from. Trucks first, then any
+     job with equipment currently on it — supplies used on a job are the
+     ones you'd bill back, so they need to be a destination too. */
   const sel = document.getElementById('bwVan');
-  sel.innerHTML = customLocations.map(l=>`<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join('')
-    || '<option value="">No trucks set up yet</option>';
+  const trucks = customLocations.map(l=>`<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join('');
+  const jobs = getClientNames()
+    .filter(n=>getClientItems(n).length)
+    .sort()
+    .map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+  sel.innerHTML =
+    (trucks ? `<optgroup label="Trucks">${trucks}</optgroup>` : '') +
+    (jobs   ? `<optgroup label="Active jobs">${jobs}</optgroup>` : '') ||
+    '<option value="">Nowhere set up yet</option>';
   bwPicked = {};
   bwRender();
 }
@@ -5386,7 +5413,7 @@ function bwUpdateFooter(){
     const c = consumables.find(x=>x.id===id);
     return c && bwResulting(c, Number(bwPicked[id])||0) < 0;
   });
-  const label = { recv:'Receive', out:'Load', in:'Return' }[bwMode];
+  const label = { recv:'Receive', out:'Send', in:'Bring back' }[bwMode];
   const count = document.getElementById('bwCount');
   const btn   = document.getElementById('bwApply');
   if(overdrawn.length){
@@ -5418,18 +5445,20 @@ async function bwApply(){
     moved++;
     // Logged against the equipment activity feed so there's a record of
     // where supplies went, same as equipment moves.
+    const toJob = bwMode!=='recv' && getClientNames().includes(van);
     addActivityEntry('moved',
-      { id: c.name, type: conCat(c)==='loadout'?'Loadout':'Consumable', jobsite:'', tech:'' },
+      { id: c.name, type: conCat(c)==='loadout'?'Loadout':'Consumable',
+        jobsite: toJob ? van : '', tech: '' },
       bwMode==='recv' ? `Received ${n} ${c.unit||''}`.trim()
-      : bwMode==='out' ? `${n} ${c.unit||''} loaded to ${van}`.trim()
-      :                  `${n} ${c.unit||''} returned from ${van}`.trim());
+      : bwMode==='out' ? `${n} ${c.unit||''} sent to ${van}`.trim()
+      :                  `${n} ${c.unit||''} brought back from ${van}`.trim());
   });
   bwPicked = {};
   await saveActivity();
   await saveConsumables();
   renderConsumables();
   bwRender();
-  const verb = bwMode==='recv' ? 'received' : bwMode==='out' ? `loaded to ${van}` : `returned from ${van}`;
+  const verb = bwMode==='recv' ? 'received' : bwMode==='out' ? `sent to ${van}` : `brought back from ${van}`;
   showToast(`${moved} item${moved!==1?'s':''} ${verb}`);
 }
 /* --- scanning into the worksheet ------------------------------------
