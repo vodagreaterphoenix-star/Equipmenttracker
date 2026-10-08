@@ -1774,6 +1774,13 @@ body.modal-open #mapCanvas{ visibility:hidden; }
     <button class="close-x" onclick="closeModal('modalAssign')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
   <div class="hint" style="margin-top:0;">This barcode isn't on any supply yet. Say what it is and it's remembered — every scan after this one goes straight through.</div>
+  <div class="field" id="asCodeRow" style="display:none;">
+    <label>Barcode / UPC</label>
+    <div style="display:flex;gap:8px;">
+      <input id="asCodeInput" style="flex:1;" placeholder="Type it, or tap Scan" autocapitalize="characters" spellcheck="false">
+      <button class="btn btn-ghost" style="width:auto;padding:0 14px;" onclick="openScanForAssign()">Scan</button>
+    </div>
+  </div>
   <div class="field">
     <label>It's this supply</label>
     <select id="asSupply"></select>
@@ -1866,6 +1873,10 @@ body.modal-open #mapCanvas{ visibility:hidden; }
     <button class="map-btn" style="flex-shrink:0;" onclick="openScanForSupplies()">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
       Scan items
+    </button>
+    <button class="map-btn" style="flex-shrink:0;" onclick="openAssignCode('')">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+      Assign a code
     </button>
   </div>
   <input id="bwSearch" placeholder="Filter the list…" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-size:13px;margin-bottom:10px;" oninput="bwRender()">
@@ -4141,6 +4152,12 @@ function lookupCode(code){
     cmAddCode(clean);              // attaches it to the supply chosen above
     return {ok:true, msg:clean};
   }
+  if(scanMode === 'assignCode'){
+    closeScan();
+    document.getElementById('asCodeInput').value = normCode(clean);
+    showToast(`Read ${normCode(clean)} — now say what it is`);
+    return {ok:true, msg:clean};
+  }
   if(scanMode === 'supplies'){
     return addScannedSupply(clean);
   }
@@ -5519,6 +5536,7 @@ async function bwApply(){
    name, so a QR label you print yourself works as well as the
    manufacturer's barcode. ------------------------------------------- */
 function openScanForSupplies(){ openScan('supplies'); }
+function openScanForAssign(){ openScan('assignCode'); }
 function openScanForSupplyCode(){ openScan('supplyCode'); }
 
 /* Scanners aren't consistent about UPC formats: the same box can come
@@ -5565,7 +5583,18 @@ let assignPendingCode = null;
 
 function openAssignCode(code){
   assignPendingCode = normCode(code);
-  document.getElementById('asCode').textContent = assignPendingCode;
+  const label = document.getElementById('asCode');
+  const row   = document.getElementById('asCodeRow');
+  if(assignPendingCode){
+    // Came from a scan: the code is known, just needs naming.
+    label.textContent = assignPendingCode;
+    row.style.display = 'none';
+  } else {
+    // Opened by hand: type or scan the code here first.
+    label.textContent = 'Scan or type the code below';
+    row.style.display = 'block';
+    document.getElementById('asCodeInput').value = '';
+  }
   const sel = document.getElementById('asSupply');
   sel.innerHTML = [...consumables]
     .sort((a,b)=>conCat(a).localeCompare(conCat(b)) || a.name.localeCompare(b.name))
@@ -5576,8 +5605,15 @@ function openAssignCode(code){
 }
 
 async function confirmAssignCode(){
+  // A code typed into the sheet counts the same as one that was scanned.
+  if(!assignPendingCode){
+    assignPendingCode = normCode(document.getElementById('asCodeInput').value);
+  }
   const c = consumables.find(x=>x.id === document.getElementById('asSupply').value);
-  if(!c || !assignPendingCode){ closeModal('modalAssign'); return; }
+  if(!assignPendingCode){ showToast('Scan or type the code first'); return; }
+  if(!c){ closeModal('modalAssign'); return; }
+  const dupe = consumables.find(x=>supplyCodes(x).some(sc=>codeKey(sc)===codeKey(assignPendingCode)));
+  if(dupe){ showToast(`That code is already on ${dupe.name}`); return; }
   const per = Math.max(1, parseInt(document.getElementById('asPer').value,10) || 1);
   c.barcodes = [...supplyCodeObjs(c), { code: assignPendingCode, per }];
   delete c.barcode;
