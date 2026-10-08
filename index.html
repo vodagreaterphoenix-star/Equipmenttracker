@@ -1765,6 +1765,26 @@ body.modal-open #mapCanvas{ visibility:hidden; }
 <!-- ===== BEGIN CONSUMABLES FEATURE (MODALS) ===== -->
 <!-- ===== CONSUMABLES: manage sheet ===== -->
 <!-- ===== CONSUMABLES: barcode manager (Settings) ===== -->
+<!-- ===== CONSUMABLES: assign an unknown code on the spot ===== -->
+<div class="overlay" id="modalAssign"><div class="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <div><div class="sheet-title">What did you just scan?</div><div class="sheet-sub" id="asCode">—</div></div>
+    <button class="close-x" onclick="closeModal('modalAssign')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div class="hint" style="margin-top:0;">This barcode isn't on any supply yet. Say what it is and it's remembered — every scan after this one goes straight through.</div>
+  <div class="field">
+    <label>It's this supply</label>
+    <select id="asSupply"></select>
+  </div>
+  <div class="field">
+    <label>One scan of it = how many?</label>
+    <input id="asPer" type="number" min="1" step="1" value="1">
+    <div class="hint">A case of 50 zippers is 50. A single roll is 1.</div>
+  </div>
+  <div class="btn-row"><button class="btn btn-cyan" onclick="confirmAssignCode()">Save &amp; add it</button></div>
+</div></div>
+
 <div class="overlay" id="modalCodes"><div class="sheet" style="max-height:92vh;">
   <div class="sheet-handle"></div>
   <div class="sheet-head">
@@ -5005,7 +5025,8 @@ function supplyCodeObjs(c){
 function supplyCodes(c){ return supplyCodeObjs(c).map(b=>b.code); }
 /* How many units one scan of this code adds. */
 function supplyPer(c, code){
-  const hit = supplyCodeObjs(c).find(b=>b.code === String(code).toUpperCase());
+  const key = codeKey(code);
+  const hit = supplyCodeObjs(c).find(b=>codeKey(b.code) === key);
   return hit ? hit.per : 1;
 }
 
@@ -5092,7 +5113,7 @@ async function cmAddCode(code){
   if(!c){ showToast('Pick a supply first'); return; }
   if(!raw){ showToast('Scan or type a code first'); return; }
   // A code can only point at one supply, or a scan is ambiguous.
-  const clash = consumables.find(x=>supplyCodes(x).includes(raw));
+  const clash = consumables.find(x=>supplyCodes(x).some(sc=>codeKey(sc)===codeKey(raw)));
   if(clash){
     showToast(clash.id===c.id ? 'Already on this supply' : `That code is already on ${clash.name}`);
     return;
@@ -5470,17 +5491,31 @@ async function bwApply(){
 function openScanForSupplies(){ openScan('supplies'); }
 function openScanForSupplyCode(){ openScan('supplyCode'); }
 
+/* Scanners aren't consistent about UPC formats: the same box can come
+   back as 012345678905, 12345678905 or with hyphens, depending on the
+   phone and the symbology it decided on. Comparing a normalised form
+   means a code set up on one device still matches on another. */
+function normCode(x){
+  return String(x||'').trim().toUpperCase().replace(/[\s-]/g,'');
+}
+function codeKey(x){
+  const n = normCode(x);
+  return /^\d+$/.test(n) ? n.replace(/^0+/,'') : n;   // digits: ignore leading zeros
+}
 function findSupplyByCode(code){
-  const clean = String(code).trim().toUpperCase();
-  return consumables.find(c=>supplyCodes(c).includes(clean))
-      || consumables.find(c=>String(c.name||'').toUpperCase() === clean)
+  const key = codeKey(code);
+  return consumables.find(c=>supplyCodes(c).some(sc=>codeKey(sc) === key))
+      || consumables.find(c=>String(c.name||'').toUpperCase() === normCode(code))
       || null;
 }
 
 function addScannedSupply(code){
   const c = findSupplyByCode(code);
   if(!c){
-    return {ok:false, msg:`No supply has the code ${code}`};
+    // Don't just reject it — a tech holding the box can say what it is,
+    // and from then on the code is known. Beats walking back to Settings.
+    openAssignCode(code);
+    return {ok:false, msg:`${normCode(code)} isn't assigned yet — pick what it is`};
   }
   // How many units this particular barcode represents — one roll, or a
   // case of fifty. Scanning the same code twice adds the pack twice.
@@ -5490,6 +5525,36 @@ function addScannedSupply(code){
   return {ok:true,
           msg:`${c.name} — ${bwPicked[c.id]} ${c.unit||''}`.trim(),
           count:Object.keys(bwPicked).length};
+}
+/* --- assigning a code mid-scan --------------------------------------- */
+let assignPendingCode = null;
+
+function openAssignCode(code){
+  assignPendingCode = normCode(code);
+  document.getElementById('asCode').textContent = assignPendingCode;
+  const sel = document.getElementById('asSupply');
+  sel.innerHTML = [...consumables]
+    .sort((a,b)=>conCat(a).localeCompare(conCat(b)) || a.name.localeCompare(b.name))
+    .map(c=>`<option value="${c.id}">${escapeHtml(c.name)}${conCat(c)==='loadout'?' (loadout)':''}</option>`)
+    .join('') || '<option value="">No supplies yet</option>';
+  document.getElementById('asPer').value = 1;
+  openModal('modalAssign');
+}
+
+async function confirmAssignCode(){
+  const c = consumables.find(x=>x.id === document.getElementById('asSupply').value);
+  if(!c || !assignPendingCode){ closeModal('modalAssign'); return; }
+  const per = Math.max(1, parseInt(document.getElementById('asPer').value,10) || 1);
+  c.barcodes = [...supplyCodeObjs(c), { code: assignPendingCode, per }];
+  delete c.barcode;
+  // Count this scan straight away, so the tech doesn't have to scan twice.
+  bwPicked[c.id] = (Number(bwPicked[c.id])||0) + per;
+  const code = assignPendingCode;
+  assignPendingCode = null;
+  closeModal('modalAssign');
+  bwRender();
+  await saveConsumables();
+  showToast(`${code} is now ${c.name} — added ${per} ${c.unit||''}`.trim());
 }
 /* ===== END BATCH WORKSHEET (JAVASCRIPT) ===== */
 
