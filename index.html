@@ -1229,9 +1229,10 @@ body.modal-open #mapCanvas{ visibility:hidden; }
     <div class="help-p">There are two lists here. <b>Consumables</b> are used up and don't come back — plastic, tape, Vital Oxide, filters, Tyvek suits, trash bags. <b>Loadouts</b> are tools and gear that ride on the truck and return — toolbox, ladder, floor buffer, half masks, batteries. Both are counted the same way; they're split so nobody scrolls past ladders looking for trash bags.</div>
     <div class="help-bullet"><b>+ Add supply</b> — pick which list it belongs to, name it, say what it's counted in (boxes, rolls, each), the count now, and the number to reorder at.</div>
     <div class="help-p"><b>Scanning supplies.</b> Each supply can hold <b>as many barcodes as you need</b>. That matters because the same product from two manufacturers has two different UPCs — 6 mil 10x100 plastic from one brand won't scan the same as another brand's. Put both codes on the one item and either box scans to it. Your own printed shelf labels work the same way.</div>
-    <div class="help-step"><div class="n">1</div><div><div class="t">Set the codes up once, in Settings &rarr; Consumables</div><div class="d">Choose the supply, scan the box, done. Repeat for each brand you buy. One person does this once; everyone else just scans.</div></div></div>
-    <div class="help-step"><div class="n">2</div><div><div class="t">Remove a code with the × on its chip</div><div class="d">Useful if a product is discontinued or a code was scanned by mistake.</div></div></div>
-    <div class="help-step"><div class="n">3</div><div><div class="t">Then use "Scan items" on the worksheet</div><div class="d">Work along the rack. Each scan ticks that item; scanning the same thing twice counts two. Type quantities afterwards if the counts differ.</div></div></div>
+    <div class="help-step"><div class="n">1</div><div><div class="t">Set the codes up once, in Settings &rarr; Consumables</div><div class="d">Pick the supply, scan the box, say how many one scan is worth, Add. The screen shows how many of your supplies still need a code, so it's a job you can work through and finish.</div></div></div>
+    <div class="help-step"><div class="n">2</div><div><div class="t">Say what one scan is worth</div><div class="d">A case of 50 zippers should add 50, so put 50. A single roll of plastic stays 1. The case barcode and the single barcode can both sit on the same supply with different numbers.</div></div></div>
+    <div class="help-step"><div class="n">3</div><div><div class="t">Remove a code with the × on its chip</div><div class="d">Useful if a product is discontinued or a code was scanned by mistake.</div></div></div>
+    <div class="help-step"><div class="n">4</div><div><div class="t">Then just scan the delivery in</div><div class="d">Consumables &rarr; Receive shipment &rarr; Scan items. Scan a roll of 6 mil 10x100, then 20x100, then a case of zippers — each lands on the right line with the right quantity. Tap Receive once at the end. Nothing is saved until you do.</div></div></div>
     <div class="hint">A code can only belong to one supply. If you scan something already attached elsewhere, the app says which item has it rather than quietly moving it.</div>
     <div class="help-p"><b>Moving several at once.</b> The Consumables screen opens with a worksheet at the top. Pick what you're doing — <b>Load to truck</b>, <b>Return to shop</b>, or <b>Receive shipment</b> — tick the items, type the quantities, and tap apply once. The Total column shows what each count becomes before you commit, and it won't let you load more than the shop has.</div>
     <div class="help-bullet"><b>Consumables</b> (Home screen) opens the same list with a summary across the top — how many supplies you track, how many need reordering, how many are on order — plus a print button for the shopping list.</div>
@@ -1784,8 +1785,15 @@ body.modal-open #mapCanvas{ visibility:hidden; }
       <input id="cmCode" style="flex:1;" placeholder="Scan or type a UPC / QR" autocapitalize="characters" spellcheck="false"
              onkeydown="if(event.key==='Enter'){event.preventDefault();cmAddCode();}">
       <button class="btn btn-ghost" style="width:auto;padding:0 12px;" onclick="openScanForSupplyCode()">Scan</button>
-      <button class="btn btn-cyan" style="width:auto;padding:0 14px;" onclick="cmAddCode()">Add</button>
     </div>
+  </div>
+  <div class="field">
+    <label>One scan of this code = how many?</label>
+    <div style="display:flex;gap:8px;">
+      <input id="cmPer" type="number" min="1" step="1" value="1" style="flex:1;">
+      <button class="btn btn-cyan" style="width:auto;padding:0 18px;" onclick="cmAddCode()">Add code</button>
+    </div>
+    <div class="hint">Scanning the barcode on a <b>case of 50 zippers</b> should add 50, not 1 — put 50 here. A single roll of plastic stays 1. Each code has its own number, so the case barcode and the single-item barcode can both live on the same supply.</div>
   </div>
 
   <div class="section-title">Codes on this supply</div>
@@ -4971,12 +4979,26 @@ function conFormName(){
     : sel.value;
 }
 
-/* Every code a supply answers to. Handles records saved before this was a
-   list, which carried a single `barcode` string. */
-function supplyCodes(c){
+/* Every code a supply answers to, as {code, per} — `per` being how many
+   units one scan represents. A case of zippers scans as 50, a single roll
+   of plastic as 1. Reads three shapes so nothing saved earlier breaks:
+   a single `barcode` string, a list of plain strings, or this list. */
+function supplyCodeObjs(c){
   if(!c) return [];
-  if(Array.isArray(c.barcodes)) return c.barcodes.map(x=>String(x).toUpperCase());
-  return c.barcode ? [String(c.barcode).toUpperCase()] : [];
+  if(Array.isArray(c.barcodes)){
+    return c.barcodes.map(b=> typeof b === 'string'
+      ? { code: b.toUpperCase(), per: 1 }
+      : { code: String(b.code||'').toUpperCase(), per: Math.max(1, Number(b.per)||1) })
+      .filter(b=>b.code);
+  }
+  return c.barcode ? [{ code: String(c.barcode).toUpperCase(), per: 1 }] : [];
+}
+/* Just the code strings, for matching. */
+function supplyCodes(c){ return supplyCodeObjs(c).map(b=>b.code); }
+/* How many units one scan of this code adds. */
+function supplyPer(c, code){
+  const hit = supplyCodeObjs(c).find(b=>b.code === String(code).toUpperCase());
+  return hit ? hit.per : 1;
 }
 
 /* ---- Barcode manager, opened from Settings -------------------------
@@ -4991,35 +5013,58 @@ function openCodeManager(){
     ? sorted.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}${conCat(c)==='loadout'?' (loadout)':''}</option>`).join('')
     : '<option value="">No supplies yet — add one first</option>';
   document.getElementById('cmCode').value = '';
+  document.getElementById('cmPer').value = 1;
   renderCodeManager();
   openModal('modalCodes');
+}
+
+function cmChip(itemId, b){
+  const per = b.per > 1 ? ` <span style="font-weight:800;color:var(--blue);">&times;${b.per}</span>` : '';
+  return `<span class="code-chip">${escapeHtml(b.code)}${per}
+    <button onclick="cmRemoveCode('${itemId}','${escapeHtml(b.code)}')" title="Remove" aria-label="Remove ${escapeHtml(b.code)}">&times;</button></span>`;
 }
 
 function renderCodeManager(){
   const id = document.getElementById('cmSupply').value;
   const c  = consumables.find(x=>x.id===id);
   const cur = document.getElementById('cmCurrent');
-  const codes = supplyCodes(c);
-  cur.innerHTML = codes.length
-    ? codes.map(code=>`<span class="code-chip">${escapeHtml(code)}
-        <button onclick="cmRemoveCode('${id}','${escapeHtml(code)}')" title="Remove" aria-label="Remove ${escapeHtml(code)}">&times;</button></span>`).join('')
+  const objs = supplyCodeObjs(c);
+  cur.innerHTML = objs.length
+    ? objs.map(b=>cmChip(id,b)).join('')
     : `<div class="code-empty">No codes on this one yet.</div>`;
 
-  // Everything that has at least one code, so duplicates are easy to spot.
-  const withCodes = [...consumables]
-    .filter(x=>supplyCodes(x).length)
-    .sort((a,b)=>a.name.localeCompare(b.name));
+  // A checklist of the whole list, so setting codes up is a job you can
+  // work through and see the end of. Items without codes come first.
+  const rows = [...consumables].sort((a,b)=>{
+    const an = supplyCodes(a).length ? 1 : 0, bn = supplyCodes(b).length ? 1 : 0;
+    return an - bn || a.name.localeCompare(b.name);
+  });
+  const done = consumables.filter(x=>supplyCodes(x).length).length;
   const all = document.getElementById('cmAll');
-  all.innerHTML = withCodes.length
-    ? withCodes.map(x=>`<div class="con-card" style="padding:10px 12px;">
-        <div style="font-weight:700;font-size:13.5px;">${escapeHtml(x.name)}
-          <span style="font-weight:500;color:var(--muted);font-size:11.5px;">&middot; ${conCat(x)==='loadout'?'Loadout':'Consumable'}</span></div>
-        <div class="code-list" style="margin:8px 0 0;">${
-          supplyCodes(x).map(code=>`<span class="code-chip">${escapeHtml(code)}
-            <button onclick="cmRemoveCode('${x.id}','${escapeHtml(code)}')" aria-label="Remove ${escapeHtml(code)}">&times;</button></span>`).join('')
-        }</div>
-      </div>`).join('')
-    : `<div class="empty">Nothing has a code yet. Scan a box above to start.</div>`;
+  all.innerHTML = `<div class="hint" style="margin-top:0;margin-bottom:10px;">
+      <b>${done} of ${consumables.length}</b> set up. The ones still missing a code are listed first.
+    </div>` +
+    (rows.length ? rows.map(x=>{
+      const objs2 = supplyCodeObjs(x);
+      const mark = objs2.length
+        ? `<span class="badge instock">${objs2.length} code${objs2.length!==1?'s':''}</span>`
+        : `<span class="badge lowstock">No code</span>`;
+      return `<div class="con-card" style="padding:10px 12px;cursor:pointer;" onclick="cmPick('${x.id}')">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="flex:1;min-width:0;font-weight:700;font-size:13.5px;">${escapeHtml(x.name)}
+            <div style="font-weight:500;color:var(--muted);font-size:11.5px;">${escapeHtml(x.unit||'')} &middot; ${conCat(x)==='loadout'?'Loadout':'Consumable'}</div>
+          </div>${mark}
+        </div>
+        ${objs2.length ? `<div class="code-list" style="margin:9px 0 0;">${objs2.map(b=>cmChip(x.id,b)).join('')}</div>` : ''}
+      </div>`;
+    }).join('') : `<div class="empty">No supplies yet.</div>`);
+}
+
+/* Tapping a row up top selects it, so you can work down the list. */
+function cmPick(id){
+  document.getElementById('cmSupply').value = id;
+  renderCodeManager();
+  document.getElementById('cmCode').focus();
 }
 
 async function cmAddCode(code){
@@ -5035,18 +5080,21 @@ async function cmAddCode(code){
     showToast(clash.id===c.id ? 'Already on this supply' : `That code is already on ${clash.name}`);
     return;
   }
-  c.barcodes = [...supplyCodes(c), raw];
+  const per = Math.max(1, parseInt(document.getElementById('cmPer').value,10) || 1);
+  c.barcodes = [...supplyCodeObjs(c), { code: raw, per }];
   delete c.barcode;                       // upgrade the old single-code field
   box.value = '';
+  document.getElementById('cmPer').value = 1;
   renderCodeManager();
   await saveConsumables();
-  showToast(`${raw} now scans to ${c.name}`);
+  showToast(per > 1 ? `${raw} adds ${per} ${c.unit||''} of ${c.name}`.trim()
+                    : `${raw} now scans to ${c.name}`);
 }
 
 async function cmRemoveCode(id, code){
   const c = consumables.find(x=>x.id===id);
   if(!c) return;
-  c.barcodes = supplyCodes(c).filter(x=>x !== String(code).toUpperCase());
+  c.barcodes = supplyCodeObjs(c).filter(b=>b.code !== String(code).toUpperCase());
   delete c.barcode;
   renderCodeManager();
   await saveConsumables();
@@ -5084,7 +5132,7 @@ function openEditConsumable(id){
   document.getElementById('conUnit').value = c.unit||'';
   const codes = supplyCodes(c);
   document.getElementById('conCodeNote').textContent = codes.length
-    ? `Scans from: ${codes.join(', ')} — change these in Settings \u2192 Consumables.`
+    ? `Scans from ${codes.length} code${codes.length!==1?'s':''} \u2014 manage them in Settings \u2192 Consumables.`
     : 'No barcodes yet. Add them in Settings \u2192 Consumables.';
   document.getElementById('conQty').value = Number(c.qty)||0;
   document.getElementById('conMinQty').value = Number(c.minQty)||0;
@@ -5405,15 +5453,13 @@ function addScannedSupply(code){
   if(!c){
     return {ok:false, msg:`No supply has the code ${code}`};
   }
-  if(bwPicked[c.id] !== undefined){
-    // Already on the sheet — count the scan as one more of it, which is
-    // what a tech throwing a second box on the truck actually means.
-    bwPicked[c.id] = (Number(bwPicked[c.id])||0) + 1;
-  } else {
-    bwPicked[c.id] = 1;
-  }
+  // How many units this particular barcode represents — one roll, or a
+  // case of fifty. Scanning the same code twice adds the pack twice.
+  const per = supplyPer(c, code);
+  bwPicked[c.id] = (Number(bwPicked[c.id])||0) + per;
   bwRender();
-  return {ok:true, msg:`${c.name} — ${bwPicked[c.id]} ${c.unit||''}`.trim(),
+  return {ok:true,
+          msg:`${c.name} — ${bwPicked[c.id]} ${c.unit||''}`.trim(),
           count:Object.keys(bwPicked).length};
 }
 /* ===== END BATCH WORKSHEET (JAVASCRIPT) ===== */
