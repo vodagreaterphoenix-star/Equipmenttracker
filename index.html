@@ -4164,6 +4164,20 @@ function lookupCode(code){
 
   const it = inventory.find(i=>i.id.toUpperCase()===clean || (i.barcode||'').toUpperCase()===clean);
   if(!it){
+    /* Not a piece of equipment. Before giving up, check the supplies —
+       the Scan button in the nav bar is the one a tech reaches for, and
+       it shouldn't matter to them whether the thing in their hand is an
+       air mover or a box of plastic. */
+    const sup = findSupplyByCode(clean);
+    if(sup){
+      closeScan();
+      openSupplies();                 // brings up the worksheet
+      bwPicked[sup.id] = (Number(bwPicked[sup.id])||0) + supplyPer(sup, clean);
+      bwRender();
+      const r = {ok:true, msg:`${sup.name} — ${bwPicked[sup.id]} ${sup.unit||''}`.trim()};
+      showToast(`${r.msg} · choose Receive, Send or Bring back, then apply`);
+      return r;
+    }
     const result = {ok:false, msg:`No match for "${code}"`};
     showToast(result.msg);
     return result;
@@ -4179,6 +4193,7 @@ function lookupCode(code){
     openDetail(it.id);
     result = {ok:true, msg:it.id};
   }
+
   if(scanMode!=='lookup') showToast(result.msg + (result.count!==undefined ? ` (${result.count} total)` : ''));
   return result;
 }
@@ -4828,7 +4843,7 @@ function openSupplies(){
   document.getElementById('supDefaultMin').value  = conDefaultMin();
   document.getElementById('supWarnBuffer').value  = conWarnBuffer();
   renderConsumables();
-  bwSetMode(bwMode);          // paints the worksheet and the van picker
+  bwSetModeKeeping(bwMode);   // paints the worksheet, keeps anything ticked
   openModal('modalSupplies');
 }
 async function saveSupplySettings(){
@@ -5105,7 +5120,12 @@ function openCodeManager(){
 
 function cmChip(itemId, b){
   const per = b.per > 1 ? ` <span style="font-weight:800;color:var(--blue);">&times;${b.per}</span>` : '';
-  return `<span class="code-chip">${escapeHtml(b.code)}${per}
+  // A short all-digit code is almost certainly half a barcode. Marked in
+  // red so it's obvious which ones to delete and rescan.
+  const warn = looksPartial(b.code)
+    ? ` <span style="color:var(--red);font-weight:800;" title="Looks like a partial scan">!</span>` : '';
+  const style = looksPartial(b.code) ? ' style="border-color:var(--red);"' : '';
+  return `<span class="code-chip"${style}>${escapeHtml(b.code)}${per}${warn}
     <button onclick="cmRemoveCode('${itemId}','${escapeHtml(b.code)}')" title="Remove" aria-label="Remove ${escapeHtml(b.code)}">&times;</button></span>`;
 }
 
@@ -5126,9 +5146,14 @@ function renderCodeManager(){
   });
   const done = consumables.filter(x=>supplyCodes(x).length).length;
   const all = document.getElementById('cmAll');
+  const partials = consumables.reduce((n,x)=>n + supplyCodeObjs(x).filter(b=>looksPartial(b.code)).length, 0);
   all.innerHTML = `<div class="hint" style="margin-top:0;margin-bottom:10px;">
       <b>${done} of ${consumables.length}</b> set up. The ones still missing a code are listed first.
     </div>` +
+    (partials ? `<div class="banner banner-amber" style="margin-bottom:10px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8A5A00" stroke-width="2.2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+      <span>${partials} code${partials>1?'s look':' looks'} like a partial scan (marked red). Delete and rescan those boxes — a correct scan won't match them.</span>
+    </div>` : '') +
     (rows.length ? rows.map(x=>{
       const objs2 = supplyCodeObjs(x);
       const mark = objs2.length
@@ -5163,6 +5188,10 @@ async function cmAddCode(code){
   const clash = consumables.find(x=>supplyCodes(x).some(sc=>codeKey(sc)===codeKey(raw)));
   if(clash){
     showToast(clash.id===c.id ? 'Already on this supply' : `That code is already on ${clash.name}`);
+    return;
+  }
+  if(looksPartial(raw) && !confirm(
+      `"${raw}" is only ${raw.length} digits.\n\nProduct barcodes are normally 8 to 13 digits, so this looks like a partial read — half the barcode. If you save it, scanning that box properly later won't match it.\n\nSave it anyway?`)){
     return;
   }
   const per = Math.max(1, parseInt(document.getElementById('cmPer').value,10) || 1);
@@ -5409,6 +5438,15 @@ function bwSetMode(mode){
   bwRender();
 }
 
+/* Same as bwSetMode but keeps anything already ticked — used when the
+   worksheet is opened by a scan that has just added something to it. */
+function bwSetModeKeeping(mode){
+  const keep = bwPicked;
+  bwSetMode(mode);
+  bwPicked = keep;
+  bwRender();
+}
+
 /* What a row's count becomes if this batch is applied. */
 function bwResulting(c, n){
   const have = Number(c.qty)||0;
@@ -5546,6 +5584,15 @@ function openScanForSupplyCode(){ openScan('supplyCode'); }
 function normCode(x){
   return String(x||'').trim().toUpperCase().replace(/[\s-]/g,'');
 }
+/* Product barcodes are at least 8 digits (EAN-8); UPC-A is 12, EAN-13 is
+   13. Anything shorter that's all digits is almost always a partial read
+   — half a barcode the decoder resolved anyway. Worth flagging, because
+   a fragment saved here will never match a correct scan later. */
+function looksPartial(code){
+  const n = normCode(code);
+  return /^\d+$/.test(n) && n.length < 8;
+}
+
 function codeKey(x){
   const n = normCode(x);
   return /^\d+$/.test(n) ? n.replace(/^0+/,'') : n;   // digits: ignore leading zeros
