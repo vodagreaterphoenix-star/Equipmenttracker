@@ -5216,7 +5216,7 @@ async function cmAddCode(code){
     return;
   }
   if(looksPartial(raw) && !confirm(
-      `"${raw}" is only ${raw.length} digits.\n\nProduct barcodes are normally 8 to 13 digits, so this looks like a partial read — half the barcode. If you save it, scanning that box properly later won't match it.\n\nSave it anyway?`)){
+      `"${raw}" is only ${raw.length} digits.\n\nThat's short even for a store SKU, so it may be half a barcode. If it is, scanning that box properly later won't match it.\n\nSave it anyway?`)){
     return;
   }
   const per = Math.max(1, parseInt(document.getElementById('cmPer').value,10) || 1);
@@ -5633,7 +5633,10 @@ function normCode(x){
    a fragment saved here will never match a correct scan later. */
 function looksPartial(code){
   const n = normCode(code);
-  return /^\d+$/.test(n) && n.length < 8;
+  // Under 6 digits is almost certainly half a barcode. 6 and 7 digit
+  // codes are left alone — store SKUs and internal part numbers are
+  // often that short and are perfectly valid.
+  return /^\d+$/.test(n) && n.length < 6;
 }
 
 function codeKey(x){
