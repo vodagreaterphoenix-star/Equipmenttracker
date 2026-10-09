@@ -4123,16 +4123,28 @@ function flashScanFrame(ok){
   frame.classList.add(ok!==false ? 'scan-hit' : 'scan-miss');
   setTimeout(()=>frame.classList.remove('scan-hit','scan-miss'), 500);
 }
+/* Single-shot modes: looking an asset up, and capturing a code to attach
+   to a supply.
+
+   THIS MUST CONFIRM THE READ THE SAME WAY THE CONTINUOUS MODES DO. It
+   used to accept the first string the decoder produced, while the supply
+   worksheet waited for two identical reads. The result was that setting a
+   code in Settings stored a fragment — "64307010" — while scanning the
+   same box in the worksheet produced the full barcode, so the two could
+   never match. One gate, used by every mode. */
 function handleScanResult(code){
-  // Only reached for plain single-item lookup mode now — continuous modes
-  // (job kit / move / return) route through handleContinuousScan instead
-  // and never stop the camera between scans.
+  const clean = code.trim().toUpperCase();
+  if(clean !== pendingScan){ pendingScan = clean; pendingScanCount = 1; return; }
+  pendingScanCount++;
+  if(pendingScanCount < 2) return;
+  pendingScan = null; pendingScanCount = 0;
   closeScan();
-  lookupCode(code);
+  lookupCode(clean);
 }
 function manualLookup(){
   const code = document.getElementById('manualCode').value.trim();
   if(!code) return;
+  pendingScan = null; pendingScanCount = 0;   // typed, so nothing to confirm
   document.getElementById('manualCode').value = '';
   const isContinuous = ['clientReturn','jobKit','bulkMove','supplies'].includes(scanMode);
   if(isContinuous){
@@ -5183,6 +5195,8 @@ function cmPick(id){
   document.getElementById('cmCode').focus();
 }
 
+async /* Shows the exact string the scanner produced, so a code that looks
+   wrong can be spotted before it's saved rather than weeks later. */
 async function cmAddCode(code){
   const box = document.getElementById('cmCode');
   const raw = (typeof code === 'string' ? code : box.value).trim().toUpperCase();
