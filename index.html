@@ -4969,7 +4969,7 @@ function renderConsumables(){
      opened before the first sync landed, it stayed empty while the cards
      around it filled in. Refreshing them here means every screen that
      shows supplies updates together, on every sync. */
-  if(typeof bwRender === 'function') bwRender();
+  if(typeof bwRender === 'function' && typeof bwPicked !== 'undefined') bwRender();
   if(typeof refreshCodeManager === 'function') refreshCodeManager();
 }
 
@@ -5195,8 +5195,7 @@ function cmPick(id){
   document.getElementById('cmCode').focus();
 }
 
-async /* Shows the exact string the scanner produced, so a code that looks
-   wrong can be spotted before it's saved rather than weeks later. */
+/* Attaches a code to the supply chosen above. */
 async function cmAddCode(code){
   const box = document.getElementById('cmCode');
   const raw = (typeof code === 'string' ? code : box.value).trim().toUpperCase();
@@ -5437,8 +5436,14 @@ function consumablesPrintHtml(){
    now — nobody would keep that accurate. Change that later by giving
    each item a per-location count.
    ================================================================= */
-let bwMode = 'recv';
-let bwPicked = {};   // id -> quantity typed
+/* Declared with var on purpose: renderConsumables() runs during the very
+   first data load and calls bwRender(), which reads these. A `let` here
+   sits in the temporal dead zone at that moment and throws
+   "Cannot access 'bwPicked' before initialization", which killed the
+   whole load and left the app showing Offline. var hoists, so the
+   worksheet simply renders empty until this block is reached. */
+var bwMode = 'recv';
+var bwPicked = {};   // id -> quantity typed
 
 function bwSetMode(mode){
   bwMode = mode;
