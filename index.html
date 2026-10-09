@@ -8,8 +8,14 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
-<meta name="theme-color" content="#3A3D40">
-<meta name="apple-mobile-web-app-capable" content="yes">
+<!-- Browser chrome colour follows the device theme: navy in dark,
+     the app background in light. The plain tag is the fallback for
+     browsers that ignore the media queries. -->
+<meta name="theme-color" content="#0A1F3D">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F2F5F7">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0B1420">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">  <!-- kept for older iOS; the line above is the current standard -->
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Voda Tracker">
 <style>
