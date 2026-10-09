@@ -1802,7 +1802,10 @@ body.modal-open #mapCanvas{ visibility:hidden; }
 
   <div class="hint" style="margin-top:0;">Scan a box and say which supply it is. A product you buy from two manufacturers has two UPCs — add both to the same supply and either box scans to it. Once a code is here, scanning it anywhere in Consumables adds that item straight away.</div>
 
-  <div class="section-title">Attach a code</div>
+  <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">
+    <span>Attach a code</span>
+    <button class="export-btn" onclick="openAddConsumable()">+ Add supply</button>
+  </div>
   <div class="field">
     <label>Which supply?</label>
     <select id="cmSupply" onchange="renderCodeManager()"></select>
@@ -4986,7 +4989,9 @@ const KNOWN_SUPPLIES = {
     "Plastic 20ft x 100ft 6mil",
     "Vital Oxide & IAQ",
     "Rags",
-    "Teal and Blue Tape",
+    "Teal Tape",
+    "Blue Tape",
+    "Nitrile Gloves",
     "Trash Bags",
     "Tyvek Suits",
     "Filters P100",
@@ -5014,7 +5019,8 @@ const KNOWN_SUPPLIES = {
 const SUPPLY_UNITS = {
   "Plastic 10ft x 100ft 4mil":"rolls","Plastic 20ft x 100ft 4mil":"rolls",
   "Plastic 10ft x 100ft 6mil":"rolls","Plastic 20ft x 100ft 6mil":"rolls",
-  "Vital Oxide & IAQ":"gallons","Rags":"bags","Teal and Blue Tape":"rolls",
+  "Vital Oxide & IAQ":"gallons","Rags":"bags",
+  "Teal Tape":"rolls","Blue Tape":"rolls","Nitrile Gloves":"boxes",
   "Trash Bags":"boxes","Tyvek Suits":"each","Filters P100":"pairs",
   "N95":"boxes","Square Filters":"each"
 };
@@ -5222,7 +5228,12 @@ function setConCat(cat){
   document.getElementById('conCatLoad').classList.toggle('active', conFormCat==='loadout');
   fillSupplyDropdown(null);
 }
+/* Remembers whether the form was opened from Settings, so Save returns
+   you to the barcode screen instead of dropping you on the home page. */
+let conFormCameFrom = null;
 function openAddConsumable(cat){
+  conFormCameFrom = document.getElementById('modalCodes').classList.contains('active') ? 'codes' : null;
+  if(conFormCameFrom) closeModal('modalCodes');
   editingConsumableId = null;
   setConCat(cat || 'consumable');
   document.getElementById('conFormTitle').textContent = 'Add supply';
@@ -5281,6 +5292,13 @@ async function confirmSaveConsumable(){
   await saveConsumables();
   showToast(editingConsumableId ? `${name} updated` : `${name} added`);
   editingConsumableId = null;
+  if(conFormCameFrom === 'codes'){      // straight back to attaching a code
+    conFormCameFrom = null;
+    openCodeManager();
+    const sel = document.getElementById('cmSupply');
+    const added = consumables.find(c=>c.name === name);
+    if(added && sel){ sel.value = added.id; renderCodeManager(); }
+  }
 }
 async function deleteConsumable(){
   const c = consumables.find(x=>x.id===editingConsumableId);
