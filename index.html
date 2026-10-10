@@ -1786,7 +1786,7 @@ details.hsec[open] > summary.help-h{border-bottom:1px solid var(--line);}
     <label>Asset ID</label>
     <div style="display:flex;gap:8px;">
       <input id="addId" style="flex:1;text-transform:uppercase;" placeholder="Auto-suggested from type">
-      <button class="btn btn-ghost" style="width:auto;padding:0 14px;" onclick="openScanForAssetId('addId')">Scan</button>
+      <button class="btn btn-ghost" style="width:auto;padding:0 14px;" onclick="openScanForAssetId('addId')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>Scan</button>
     </div>
     <div class="hint" id="addIdHint">Pick a type to auto-generate the next ID, or scan the QR label you're putting on the unit.</div>
   </div>
@@ -1820,7 +1820,7 @@ details.hsec[open] > summary.help-h{border-bottom:1px solid var(--line);}
     <label>Asset ID</label>
     <div style="display:flex;gap:8px;">
       <input id="editId" style="flex:1;text-transform:uppercase;">
-      <button class="btn btn-ghost" style="width:auto;padding:0 14px;" onclick="openScanForAssetId('editId')">Scan</button>
+      <button class="btn btn-ghost" style="width:auto;padding:0 14px;" onclick="openScanForAssetId('editId')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>Scan</button>
     </div>
     <div class="hint">Only change this if it was mistyped. If you've already printed a barcode/QR label for this item, changing the ID means the old label will stop scanning until you reprint it.</div>
   </div>
@@ -2061,7 +2061,7 @@ details.hsec[open] > summary.help-h{border-bottom:1px solid var(--line);}
     <label>Barcode / UPC</label>
     <div style="display:flex;gap:8px;">
       <input id="asCodeInput" style="flex:1;" placeholder="Type it, or tap Scan" autocapitalize="characters" spellcheck="false">
-      <button class="btn btn-ghost" style="width:auto;padding:0 14px;" onclick="openScanForAssign()">Scan</button>
+      <button class="btn btn-ghost" style="width:auto;padding:0 14px;" onclick="openScanForAssign()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>Scan</button>
     </div>
   </div>
   <div class="field">
@@ -2098,7 +2098,7 @@ details.hsec[open] > summary.help-h{border-bottom:1px solid var(--line);}
     <div style="display:flex;gap:8px;">
       <input id="cmCode" style="flex:1;" placeholder="Scan or type a UPC / QR" autocapitalize="characters" spellcheck="false"
              onkeydown="if(event.key==='Enter'){event.preventDefault();cmAddCode();}">
-      <button class="btn btn-ghost" style="width:auto;padding:0 12px;" onclick="openScanForSupplyCode()">Scan</button>
+      <button class="btn btn-ghost" style="width:auto;padding:0 12px;" onclick="openScanForSupplyCode()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>Scan</button>
     </div>
   </div>
   <div class="field">
