@@ -901,6 +901,27 @@ details.hstep .hbody{
 }
 details.hstep .hbody b{color:var(--ink);}
 
+/* Top-level help sections collapse too, so the guide is a short menu
+   until you open something. */
+details.hsec{border:1px solid var(--line);border-radius:12px;margin-bottom:10px;
+  background:var(--card);overflow:hidden;}
+details.hsec > summary.help-h{
+  margin:0;padding:13px 14px;cursor:pointer;list-style:none;
+  display:flex;align-items:center;gap:9px;
+  -webkit-tap-highlight-color:transparent;
+}
+details.hsec > summary::-webkit-details-marker{display:none;}
+details.hsec > summary::marker{content:'';}
+details.hsec > summary.help-h::after{
+  content:'';width:8px;height:8px;flex-shrink:0;margin-left:auto;
+  border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);
+  transform:rotate(-45deg);transition:transform .15s;
+}
+details.hsec[open] > summary.help-h::after{transform:rotate(45deg);}
+details.hsec[open] > summary.help-h{border-bottom:1px solid var(--line);}
+.hsec-body{padding:12px 14px 6px;}
+.hsec-body .help-p:last-child,.hsec-body .help-bullet:last-child{margin-bottom:6px;}
+
 </style>
 </head>
 <body>
@@ -1218,8 +1239,8 @@ details.hstep .hbody b{color:var(--ink);}
 
   <div class="help-intro">Tap any step to open it up. Everything here works the same on an iPhone, an Android phone and a computer unless a step says otherwise.</div>
 
-  <div class="help-section">
-    <div class="help-h"><span class="num">1</span>Getting started</div>
+  <details class="hsec"><summary class="help-h"><span class="num">1</span>Getting started</summary>
+    <div class="hsec-body">
     <div class="help-p">The app is a web link — there's nothing to install from an app store. Put it on your home screen once and it opens like any other app.</div>
 
     <details class="hstep"><summary><span class="n">1</span><span class="t">Put it on your home screen</span></summary>
@@ -1248,10 +1269,10 @@ details.hstep .hbody b{color:var(--ink);}
         <b>Android / computer:</b> pull down to refresh, or Ctrl+Shift+R on a keyboard.
       </div>
     </details>
-  </div>
+  </div></details>
 
-  <div class="help-section">
-    <div class="help-h"><span class="num">2</span>Sending equipment OUT to a job</div>
+  <details class="hsec"><summary class="help-h"><span class="num">2</span>Sending equipment OUT to a job</summary>
+    <div class="hsec-body">
     <div class="help-p">Always use <b>Load a Job Kit</b>, even for one item. It keeps every checkout logged the same way, which is what makes the reports trustworthy.</div>
 
     <details class="hstep"><summary><span class="n">1</span><span class="t">Tap "Load a job kit" on the Home screen</span></summary>
@@ -1277,10 +1298,10 @@ details.hstep .hbody b{color:var(--ink);}
     <details class="hstep"><summary><span class="n">6</span><span class="t">Tap "Check out selected items"</span></summary>
       <div class="hbody">Nothing is recorded until you tap this. The job now shows under <b>Active Jobs</b>, and the equipment appears on the map at that address.</div>
     </details>
-  </div>
+  </div></details>
 
-  <div class="help-section">
-    <div class="help-h"><span class="num">3</span>Bringing equipment BACK</div>
+  <details class="hsec"><summary class="help-h"><span class="num">3</span>Bringing equipment BACK</summary>
+    <div class="hsec-body">
 
     <details class="hstep"><summary><span class="n">1</span><span class="t">Open the job</span></summary>
       <div class="hbody">Tap <b>Jobs</b> in the bottom bar, find the customer under Active Jobs, tap to open.</div>
@@ -1301,10 +1322,10 @@ details.hstep .hbody b{color:var(--ink);}
     <details class="hstep"><summary><span class="n">5</span><span class="t">Equipment coming back in stages</span></summary>
       <div class="hbody">Perfectly fine — repeat this each time. The job stays Active until everything on it is back.</div>
     </details>
-  </div>
+  </div></details>
 
-  <div class="help-section">
-    <div class="help-h"><span class="num">4</span>How long it's been out — the colours</div>
+  <details class="hsec"><summary class="help-h"><span class="num">4</span>How long it's been out — the colours</summary>
+    <div class="hsec-body">
     <div class="help-p">Every item on a job has a coloured stripe down its left edge and a badge showing what day it's on. You don't have to read dates to spot a problem.</div>
 
     <details class="hstep"><summary><span class="n">1</span><span class="t">Green — days 1 to 3</span></summary>
@@ -1319,10 +1340,10 @@ details.hstep .hbody b{color:var(--ink);}
     <details class="hstep"><summary><span class="n">4</span><span class="t">"Overdue" is a different thing</span></summary>
       <div class="hbody">Overdue means past the return date set at checkout, whatever day it's on. A unit can be red for either reason, and they mean different things — one is "this has been out a while", the other is "this was promised back".</div>
     </details>
-  </div>
+  </div></details>
 
-  <div class="help-section">
-    <div class="help-h"><span class="num">5</span>Equipment in maintenance</div>
+  <details class="hsec"><summary class="help-h"><span class="num">5</span>Equipment in maintenance</summary>
+    <div class="hsec-body">
 
     <details class="hstep"><summary><span class="n">1</span><span class="t">Two ways something lands there</span></summary>
       <div class="hbody">Automatically, when it's checked in as Needs Repair or Out of Service. Or directly, when you find something damaged in the shop — open the item and tap <b>Send to maintenance</b>.</div>
@@ -1333,10 +1354,10 @@ details.hstep .hbody b{color:var(--ink);}
     <details class="hstep"><summary><span class="n">3</span><span class="t">Putting it back in service</span></summary>
       <div class="hbody">Open the item and tap <b>Mark fixed — return to shop</b>. Only then can it be checked out again.</div>
     </details>
-  </div>
+  </div></details>
 
-  <div class="help-section">
-    <div class="help-h"><span class="num">6</span>Moving equipment between the shop and vans</div>
+  <details class="hsec"><summary class="help-h"><span class="num">6</span>Moving equipment between the shop and vans</summary>
+    <div class="hsec-body">
 
     <details class="hstep"><summary><span class="n">1</span><span class="t">Loading a van</span></summary>
       <div class="hbody">Home screen → <b>Move equipment</b>. Choose the van at the top, tick what's going on it, tap Move. Or tap <b>Scan</b> and scan each unit as it goes in.</div>
@@ -1347,10 +1368,10 @@ details.hstep .hbody b{color:var(--ink);}
     <details class="hstep"><summary><span class="n">3</span><span class="t">Why this matters</span></summary>
       <div class="hbody">Equipment on a van is still available to check out, but you know where it physically is. Someone looking for an air scrubber can see it's already on the Resto Van rather than hunting the shop for it.</div>
     </details>
-  </div>
+  </div></details>
 
-  <div class="help-section">
-    <div class="help-h"><span class="num">7</span>Scanning equipment</div>
+  <details class="hsec"><summary class="help-h"><span class="num">7</span>Scanning equipment</summary>
+    <div class="hsec-body">
     <div class="help-p">Every piece of equipment can carry a QR label. Scanning is faster than scrolling and removes typing mistakes.</div>
 
     <details class="hstep"><summary><span class="n">1</span><span class="t">Allowing the camera</span></summary>
@@ -1371,10 +1392,10 @@ details.hstep .hbody b{color:var(--ink);}
     <details class="hstep"><summary><span class="n">4</span><span class="t">If it won't read</span></summary>
       <div class="hbody">Fill the cyan square with the code and hold it square-on rather than at an angle. The app waits for two identical reads before accepting one, so give it a second — that's what stops it recording half a barcode.<br><br>Still nothing? Type the code into the box below the camera.</div>
     </details>
-  </div>
+  </div></details>
 
-  <div class="help-section">
-    <div class="help-h"><span class="num">8</span>Consumables and loadouts</div>
+  <details class="hsec"><summary class="help-h"><span class="num">8</span>Consumables and loadouts</summary>
+    <div class="hsec-body">
     <div class="help-p">Two lists, same screen. <b>Consumables</b> get used up and don't come back — plastic, tape, filters, PPE. <b>Loadouts</b> are tools that ride on the truck and return — toolbox, ladder, floor buffer.</div>
 
     <details class="hstep"><summary><span class="n">1</span><span class="t">The three movements</span></summary>
@@ -1408,10 +1429,10 @@ details.hstep .hbody b{color:var(--ink);}
     <details class="hstep"><summary><span class="n">7</span><span class="t">Logging and receiving an order</span></summary>
       <div class="hbody"><b>Log order</b> records how many are coming without changing your count, so nobody orders it twice. When it lands, <b>Receive</b> adds it to the shelf and clears the order. <b>Cancel order</b> is there for when a supplier can't fill it.</div>
     </details>
-  </div>
+  </div></details>
 
-  <div class="help-section">
-    <div class="help-h"><span class="num">9</span>Barcodes for supplies</div>
+  <details class="hsec"><summary class="help-h"><span class="num">9</span>Barcodes for supplies</summary>
+    <div class="hsec-body">
     <div class="help-p">Set up in <b>gear icon → Consumables</b>. One person does this once; everyone else just scans.</div>
 
     <details class="hstep"><summary><span class="n">1</span><span class="t">Attaching a code</span></summary>
@@ -1429,10 +1450,10 @@ details.hstep .hbody b{color:var(--ink);}
     <details class="hstep"><summary><span class="n">4</span><span class="t">If a code looks too short</span></summary>
       <div class="hbody">The app warns about very short all-digit codes because they're usually half a barcode — and half a barcode will never match a proper scan later. Six and seven digit codes are left alone; store SKUs are often that short.</div>
     </details>
-  </div>
+  </div></details>
 
-  <div class="help-section">
-    <div class="help-h"><span class="num">10</span>The map</div>
+  <details class="hsec"><summary class="help-h"><span class="num">10</span>The map</summary>
+    <div class="hsec-body">
 
     <details class="hstep"><summary><span class="n">1</span><span class="t">Reading the pins</span></summary>
       <div class="hbody">Each pin carries the number of units there. Amber is a job site, cyan is the shop, red and pulsing means something there is overdue. Tap one for the equipment list, the address, and Apple / Google / Waze buttons for directions.</div>
@@ -1457,10 +1478,10 @@ details.hstep .hbody b{color:var(--ink);}
     <details class="hstep"><summary><span class="n">6</span><span class="t">If a job isn't on the map</span></summary>
       <div class="hbody">It has no address saved, or the address couldn't be found. Either way it's listed under the map rather than silently left off. Fix it by opening the job and tapping the address line.</div>
     </details>
-  </div>
+  </div></details>
 
-  <div class="help-section">
-    <div class="help-h"><span class="num">11</span>Reports and billing</div>
+  <details class="hsec"><summary class="help-h"><span class="num">11</span>Reports and billing</summary>
+    <div class="hsec-body">
 
     <details class="hstep"><summary><span class="n">1</span><span class="t">A job's own report</span></summary>
       <div class="hbody">Open the job and use the icons at the top. The document icon gives a formal letterhead report: what's currently out, everything sent with dates, everything returned, and the materials the job consumed.</div>
@@ -1480,10 +1501,10 @@ details.hstep .hbody b{color:var(--ink);}
     <details class="hstep"><summary><span class="n">4</span><span class="t">Shop-wide reports</span></summary>
       <div class="hbody">The <b>Reports</b> tab covers the whole fleet: totals, a breakdown by job site, by equipment type, and everything overdue. Use the picker to choose which sections to show and print. Supply stock, a shopping list and pending orders are included on the printed version.</div>
     </details>
-  </div>
+  </div></details>
 
-  <div class="help-section">
-    <div class="help-h"><span class="num">12</span>Adding, editing and removing equipment</div>
+  <details class="hsec"><summary class="help-h"><span class="num">12</span>Adding, editing and removing equipment</summary>
+    <div class="hsec-body">
 
     <details class="hstep"><summary><span class="n">1</span><span class="t">Adding a unit</span></summary>
       <div class="hbody">Home → <b>Add equipment</b>. Pick the type and the app suggests the next ID in that series — DH-015, A-0066. Or scan the QR label you're applying and use that instead.</div>
@@ -1497,10 +1518,10 @@ details.hstep .hbody b{color:var(--ink);}
     <details class="hstep"><summary><span class="n">4</span><span class="t">Missing equipment</span></summary>
       <div class="hbody">Tap <b>Report missing</b> on the item. It shows red everywhere and appears on the Missing count in Reports. Found later, tap <b>Mark found</b> and it returns to the shop.</div>
     </details>
-  </div>
+  </div></details>
 
-  <div class="help-section">
-    <div class="help-h"><span class="num">13</span>Team, shop details and settings</div>
+  <details class="hsec"><summary class="help-h"><span class="num">13</span>Team, shop details and settings</summary>
+    <div class="hsec-body">
 
     <details class="hstep"><summary><span class="n">1</span><span class="t">Who can be assigned to jobs</span></summary>
       <div class="hbody">Gear icon → <b>Team</b>, or Home → Manage team. Removing someone takes them off the assignment list; past job history stays exactly as recorded.</div>
@@ -1511,10 +1532,10 @@ details.hstep .hbody b{color:var(--ink);}
     <details class="hstep"><summary><span class="n">3</span><span class="t">Everything syncs</span></summary>
       <div class="hbody">Every change writes to the shop's shared records straight away, and other phones pick it up within about 20 seconds. Two people can work at once. What doesn't sync is your light/dark choice, which stays on your own device.</div>
     </details>
-  </div>
+  </div></details>
 
-  <div class="help-section">
-    <div class="help-h"><span class="num">14</span>Key terms</div>
+  <details class="hsec"><summary class="help-h"><span class="num">14</span>Key terms</summary>
+    <div class="hsec-body">
     <div class="help-bullet"><b>Job</b> — a customer and address equipment is checked out to.</div>
     <div class="help-bullet"><b>Active Job</b> — currently has equipment out.</div>
     <div class="help-bullet"><b>Post Job</b> — everything on it has been returned.</div>
@@ -1528,7 +1549,7 @@ details.hstep .hbody b{color:var(--ink);}
 
   <div class="hint" style="margin-top:4px;">Something this guide doesn't cover? Ask your manager — this is the day-to-day, not every edge case.</div>
 
-</div></div>
+</div></div></details>
 
 <!-- Check out -->
 <div class="overlay" id="modalOut"><div class="sheet">
