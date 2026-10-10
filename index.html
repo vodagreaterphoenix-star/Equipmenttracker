@@ -1085,6 +1085,7 @@ body.modal-open #mapCanvas{ visibility:hidden; }
       </button>
       <span class="map-count" id="mapCount"></span>
     </div>
+    <div class="chip-row" id="mapTypeChips"></div>
     <div class="map-warn" id="mapWarn" style="display:none;"></div>
     <div id="mapCanvas"></div>
     <div class="map-unplotted" id="mapNearest"></div>
@@ -4411,6 +4412,37 @@ function mapLabelFor(it){
   if(it.status === 'Maintenance') return 'Shop (maintenance)';
   return it.status;
 }
+/* Which equipment types the map is showing. Empty means everything, so a
+   type added later shows up without anyone touching this. */
+let mapTypeFilter = new Set();
+
+function mapTypeToggle(type){
+  if(type === '__all') mapTypeFilter.clear();
+  else if(mapTypeFilter.has(type)) mapTypeFilter.delete(type);
+  else mapTypeFilter.add(type);
+  renderMap();
+}
+function mapTypeAllowed(it){
+  return mapTypeFilter.size === 0 || mapTypeFilter.has(it.type);
+}
+function renderMapChips(){
+  const wrap = document.getElementById('mapTypeChips');
+  if(!wrap) return;
+  const live = visibleInventory().filter(i=>i.status !== 'Retired');
+  const types = [...new Set(live.map(i=>i.type))].filter(Boolean).sort();
+  if(!types.length){ wrap.innerHTML = ''; return; }
+  const esc = t => escapeHtml(t).replace(/'/g, "\\'");
+  wrap.innerHTML =
+    '<div class="chip ' + (mapTypeFilter.size===0 ? 'active' : '') +
+      '" onclick="mapTypeToggle(\'__all\')">All</div>' +
+    types.map(function(t){
+      const n = live.filter(i=>i.type===t).length;
+      return '<div class="chip ' + (mapTypeFilter.has(t) ? 'active' : '') +
+             '" onclick="mapTypeToggle(\'' + esc(t) + '\')">' +
+             escapeHtml(t) + ' ' + n + '</div>';
+    }).join('');
+}
+
 function mapGroups(){
   const g = {};
   // The shop is always on the map, even with nothing in it. It's the base of
@@ -4419,6 +4451,7 @@ function mapGroups(){
   g['Shop'] = { label:'Shop', address: shopAddress(), items: [], overdue: 0, isShop: true };
   visibleInventory().forEach(it=>{
     if(it.status === 'Retired') return;
+    if(!mapTypeAllowed(it)) return;        // equipment type filter
     const label = mapLabelFor(it);
     if(!g[label]) g[label] = { label, address: mapAddressFor(it), items: [], overdue: 0,
                                isShop: it.status==='Shop'||it.status==='Maintenance' };
@@ -4651,7 +4684,11 @@ async function renderMap(){
   mapFirstOpen = false;
   mapObj.invalidateSize();   // WebKit needs this once the tab becomes visible
 
-  document.getElementById('mapCount').textContent = `${plotted} of ${visibleInventory().filter(i=>i.status!=='Retired').length} units plotted`;
+  renderMapChips();
+  const universe = visibleInventory().filter(i=>i.status!=='Retired' && mapTypeAllowed(i)).length;
+  const note = mapTypeFilter.size ? ' · ' + [...mapTypeFilter].join(', ') : '';
+  document.getElementById('mapCount').textContent =
+    `${plotted} of ${universe} plotted${note}`;
 
   const bad = unplotted.filter(g=>g.address).length;
   const warn = document.getElementById('mapWarn');
