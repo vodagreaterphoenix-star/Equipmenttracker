@@ -928,6 +928,25 @@ details.hsec[open] > summary.help-h{border-bottom:1px solid var(--line);}
 .hsec-body{padding:12px 14px 6px;}
 .hsec-body .help-p:last-child,.hsec-body .help-bullet:last-child{margin-bottom:6px;}
 
+/* Sheet dismissal: the backdrop fades while the sheet drops away. */
+.overlay.closing{background:rgba(10,20,30,0);transition:background .19s ease-out;}
+.overlay.closing .sheet{animation:slidedown .19s ease-in forwards;}
+@keyframes slidedown{from{transform:translateY(0);opacity:1;}
+                     to{transform:translateY(100%);opacity:0.4;}}
+
+/* Help guide: one section open at a time, and it scrolls itself into
+   view so you're not left looking at the section you just closed. */
+details.hsec{scroll-margin-top:8px;}
+.hsec-body{animation:hsecIn .18s ease-out;}
+@keyframes hsecIn{from{opacity:0;transform:translateY(-4px);}
+                  to{opacity:1;transform:translateY(0);}}
+
+/* Anyone who's asked their device to calm animations down gets none. */
+@media (prefers-reduced-motion: reduce){
+  .sheet,.overlay.closing .sheet,.hsec-body{animation:none !important;}
+  .overlay.closing{transition:none !important;}
+}
+
 </style>
 </head>
 <body>
@@ -3815,9 +3834,19 @@ document.addEventListener('keydown', e=>{
   if(!open) return;
   if(open.id === 'modalScan') closeScan(); else closeModal(open.id);
 });
+/* Sheets slide up when they open, so they should slide down when they
+   go. Without this they vanish, which reads as a glitch rather than a
+   dismissal. The class is removed after the animation so the element is
+   genuinely hidden and not just transparent. */
+const SHEET_CLOSE_MS = 190;
 function closeModal(id){
-  document.getElementById(id).classList.remove('active');
-  if(!document.querySelector('.overlay.active')) document.body.classList.remove('modal-open');
+  const ov = document.getElementById(id);
+  if(!ov || !ov.classList.contains('active')) return;
+  ov.classList.add('closing');
+  setTimeout(()=>{
+    ov.classList.remove('active','closing');
+    if(!document.querySelector('.overlay.active')) document.body.classList.remove('modal-open');
+  }, SHEET_CLOSE_MS);
 }
 
 function openDetail(id){
@@ -4422,7 +4451,7 @@ async function openScan(mode){
   }
 }
 function closeScan(){
-  closeModal('modalScan');
+  closeModal('modalScan');   // animates out; the camera stops immediately below
   if(scannerInstance){
     const inst = scannerInstance;
     scannerInstance = null;
@@ -4692,6 +4721,26 @@ async function removeLocation(name){
   renderLocations();
   showToast(`${name} removed`);
 }
+
+/* Help guide behaves as an accordion: opening a top-level section closes
+   whichever one was open, then brings the new heading to the top of the
+   sheet so the content you asked for is the content you're looking at. */
+document.addEventListener('toggle', e=>{
+  const sec = e.target;
+  if(!(sec instanceof HTMLDetailsElement) || !sec.classList.contains('hsec')) return;
+  if(!sec.open) return;
+  sec.parentElement.querySelectorAll('details.hsec[open]').forEach(other=>{
+    if(other !== sec) other.open = false;
+  });
+  // The sheet is the thing that scrolls, not the page.
+  const sheet = sec.closest('.sheet');
+  if(!sheet) return;
+  const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  requestAnimationFrame(()=>{
+    const top = sec.offsetTop - 8;
+    sheet.scrollTo({ top, behavior: smooth ? 'smooth' : 'auto' });
+  });
+}, true);   // capture: the toggle event doesn't bubble
 
 /* ============ INIT ============ */
 initTheme();
