@@ -872,6 +872,35 @@ body.modal-open #mapCanvas{ visibility:hidden; }
 /* .btn carries flex:1, which stretches it across the footer. Pin it. */
 .bw-foot .btn{flex:0 0 auto;min-width:130px;}
 /* ===== END CONSUMABLES BATCH WORKSHEET (CSS) ===== */
+/* ===== Help guide: expandable steps ===== */
+.help-intro{font-size:12.5px;color:var(--muted);background:var(--gray-bg);
+  border-radius:10px;padding:10px 12px;margin-bottom:18px;line-height:1.5;}
+details.hstep{border-bottom:1px solid var(--line);}
+details.hstep:last-of-type{border-bottom:none;}
+details.hstep > summary{
+  display:flex;align-items:flex-start;gap:10px;padding:11px 2px;cursor:pointer;
+  list-style:none;-webkit-tap-highlight-color:transparent;
+}
+details.hstep > summary::-webkit-details-marker{display:none;}
+details.hstep > summary::marker{content:'';}
+details.hstep > summary .n{
+  width:22px;height:22px;border-radius:50%;background:var(--cyan);color:var(--navy);
+  font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;margin-top:1px;
+}
+details.hstep > summary .t{font-size:13.5px;font-weight:700;color:var(--ink);flex:1;}
+details.hstep > summary::after{
+  content:'';width:8px;height:8px;flex-shrink:0;margin-top:6px;
+  border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);
+  transform:rotate(-45deg);transition:transform .15s;
+}
+details.hstep[open] > summary::after{transform:rotate(45deg);}
+details.hstep .hbody{
+  font-size:12.5px;color:var(--muted);line-height:1.6;
+  padding:0 2px 13px 32px;
+}
+details.hstep .hbody b{color:var(--ink);}
+
 </style>
 </head>
 <body>
@@ -1187,126 +1216,318 @@ body.modal-open #mapCanvas{ visibility:hidden; }
     <button class="close-x" onclick="closeModal('modalHelp')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
 
+  <div class="help-intro">Tap any step to open it up. Everything here works the same on an iPhone, an Android phone and a computer unless a step says otherwise.</div>
+
   <div class="help-section">
     <div class="help-h"><span class="num">1</span>Getting started</div>
-    <div class="help-p">The app is a bookmarked web link — nothing to install. The first time, tap Share (iPhone) or the &#8942; menu (Android), then "Add to Home Screen," so it opens like a normal app icon from then on.</div>
-    <div class="hint">If the app doesn't load, check your internet connection first — it needs a live connection to sync with the shop's records.</div>
+    <div class="help-p">The app is a web link — there's nothing to install from an app store. Put it on your home screen once and it opens like any other app.</div>
+
+    <details class="hstep"><summary><span class="n">1</span><span class="t">Put it on your home screen</span></summary>
+      <div class="hbody">
+        <b>iPhone:</b> open the link in Safari, tap the Share button at the bottom (the square with an arrow), scroll down, tap <b>Add to Home Screen</b>, then Add. It must be Safari — adding from Chrome on an iPhone doesn't work properly.<br><br>
+        <b>Android:</b> open in Chrome, tap the ⋮ menu top right, tap <b>Add to Home screen</b> or <b>Install app</b>.<br><br>
+        <b>Computer:</b> no need, just bookmark it. In Chrome or Edge there's also an install icon in the address bar if you'd rather have it in its own window.
+      </div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">2</span><span class="t">Check it says "Synced"</span></summary>
+      <div class="hbody">
+        Top right of the blue header. <b>Synced</b> means it's talking to the shop's records. <b>Saving…</b> means it's writing a change. <b>Offline</b> means it can't reach them — check your signal, and if you're somewhere with no bars, don't make changes you can't confirm went through.
+      </div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">3</span><span class="t">Light or dark</span></summary>
+      <div class="hbody">
+        The sun/moon button next to Synced switches between them. It's per-device, so your phone can be dark while the shop computer is light. Dark is easier at 6am; light is easier in the sun.
+      </div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">4</span><span class="t">If something looks wrong or out of date</span></summary>
+      <div class="hbody">
+        <b>iPhone:</b> swipe the app closed from the app switcher and reopen it. If it's on your home screen, you may need to delete the icon and add it again.<br><br>
+        <b>Android / computer:</b> pull down to refresh, or Ctrl+Shift+R on a keyboard.
+      </div>
+    </details>
   </div>
 
   <div class="help-section">
-    <div class="help-h"><span class="num">2</span>Checking equipment OUT to a job</div>
-    <div class="help-p">Always use "Load a Job Kit," even for a single item — it keeps every checkout consistent and logged the same way.</div>
-    <div class="help-step"><div class="n">1</div><div><div class="t">Tap "Load a Job Kit"</div><div class="d">Found on the Home screen.</div></div></div>
-    <div class="help-step"><div class="n">2</div><div><div class="t">Enter the Customer name</div><div class="d">Repeat customers auto-fill their saved address.</div></div></div>
-    <div class="help-step"><div class="n">3</div><div><div class="t">Enter the address</div><div class="d">Only needed for a new customer.</div></div></div>
-    <div class="help-step"><div class="n">4</div><div><div class="t">Assign a technician and set an expected return date</div></div></div>
-    <div class="help-step"><div class="n">5</div><div><div class="t">Check the box next to every item going out</div><div class="d">Scroll to find each item, use the filter, or tap Scan to add items by camera.</div></div></div>
-    <div class="help-step"><div class="n">6</div><div><div class="t">Tap "Check out selected items"</div><div class="d">The job now appears under Active Jobs.</div></div></div>
+    <div class="help-h"><span class="num">2</span>Sending equipment OUT to a job</div>
+    <div class="help-p">Always use <b>Load a Job Kit</b>, even for one item. It keeps every checkout logged the same way, which is what makes the reports trustworthy.</div>
+
+    <details class="hstep"><summary><span class="n">1</span><span class="t">Tap "Load a job kit" on the Home screen</span></summary>
+      <div class="hbody">It's the second tile, top right. You can also get there from a job's own page with <b>+ Send more out</b>, which fills the customer in for you.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">2</span><span class="t">Enter the customer</span></summary>
+      <div class="hbody">Start typing and existing customers appear as suggestions — pick one and their address fills in automatically. For a new customer, just type the name and add the address underneath. Spelling matters: "Jill Smith" and "Jill smith" become two separate jobs.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">3</span><span class="t">Address — why it's worth getting right</span></summary>
+      <div class="hbody">The address is what puts the job on the Map tab. No address, no pin, and the job won't appear when someone's looking for the nearest equipment. Include the street number and ZIP if you have it.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">4</span><span class="t">Assign a tech and a return date</span></summary>
+      <div class="hbody">The tech list comes from Manage Team. The return date defaults to four days out — change it if the job is shorter or longer. Past that date the equipment shows as <b>Overdue</b> in red.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">5</span><span class="t">Pick the equipment</span></summary>
+      <div class="hbody">Tick each item going out. Only things in the shop or on a van are listed — anything already on a job or in maintenance won't appear, so you can't double-book a unit.<br><br>Use the filter box to narrow a long list, or tap <b>Scan</b> and scan each unit's QR label. The camera stays on, so you can scan a whole trailer load one after another.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">6</span><span class="t">Tap "Check out selected items"</span></summary>
+      <div class="hbody">Nothing is recorded until you tap this. The job now shows under <b>Active Jobs</b>, and the equipment appears on the map at that address.</div>
+    </details>
   </div>
 
   <div class="help-section">
-    <div class="help-h"><span class="num">3</span>Checking equipment BACK IN</div>
-    <div class="help-step"><div class="n">1</div><div><div class="t">Tap "Jobs" on the bottom bar</div></div></div>
-    <div class="help-step"><div class="n">2</div><div><div class="t">Find the customer under Active Jobs</div><div class="d">Tap to open their job.</div></div></div>
-    <div class="help-step"><div class="n">3</div><div><div class="t">Check off what's coming back</div><div class="d">Or tap "Select all," or use "Scan" to scan items in one at a time.</div></div></div>
-    <div class="help-step"><div class="n">4</div><div><div class="t">Tap "Return selected"</div></div></div>
-    <div class="help-step"><div class="n">5</div><div><div class="t">Set the condition of the equipment and confirm</div><div class="d">Be honest here — this is how damaged or dirty equipment gets flagged before it's sent out again.</div></div></div>
-    <div class="hint">If a job's equipment comes back in batches, that's fine — just repeat this each time. The job stays "Active" until everything on it has been returned.</div>
+    <div class="help-h"><span class="num">3</span>Bringing equipment BACK</div>
+
+    <details class="hstep"><summary><span class="n">1</span><span class="t">Open the job</span></summary>
+      <div class="hbody">Tap <b>Jobs</b> in the bottom bar, find the customer under Active Jobs, tap to open.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">2</span><span class="t">Tick what's coming back</span></summary>
+      <div class="hbody">Tick each item, or tap <b>Select all</b> if everything is returning. Or tap <b>Scan</b> and scan them as you load the truck — anything not on that job is rejected, so you can't check in the wrong unit by mistake.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">3</span><span class="t">Tap "Return selected"</span></summary>
+      <div class="hbody">Then say who's bringing it back, where it's going (the shop, a van, wherever it physically lands), and what condition it's in.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">4</span><span class="t">Be honest about condition</span></summary>
+      <div class="hbody">Marking something <b>Needs Repair</b> or <b>Out of Service</b> sends it straight to the maintenance queue instead of the shop floor, so nobody loads a broken dehu onto the next job. That's the whole point of the field.<br><br>Condition applies to everything you ticked, so if one unit is damaged, check that one in separately from its own page.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">5</span><span class="t">Equipment coming back in stages</span></summary>
+      <div class="hbody">Perfectly fine — repeat this each time. The job stays Active until everything on it is back.</div>
+    </details>
   </div>
 
   <div class="help-section">
     <div class="help-h"><span class="num">4</span>How long it's been out — the colours</div>
-    <div class="help-p">Every piece of equipment on a job carries a coloured stripe down its left edge and a badge showing what day it's on. You don't have to read dates to spot a problem.</div>
-    <div class="help-step"><div class="n">1</div><div><div class="t">Green — days 1 to 3</div><div class="d">Normal drying time. Nothing to do.</div></div></div>
-    <div class="help-step"><div class="n">2</div><div><div class="t">Yellow — days 4 and 5</div><div class="d">Getting long. Worth a call to see whether it's ready to pull.</div></div></div>
-    <div class="help-step"><div class="n">3</div><div><div class="t">Red — day 6 and beyond</div><div class="d">Too long. Either it's genuinely still needed, or it's been forgotten on site.</div></div></div>
-    <div class="help-bullet"><b>Overdue</b> is separate — that's anything past the return date set at checkout, and it shows red whatever day it's on.</div>
-    <div class="help-bullet">The <b>Jobs</b> tab uses the same colours on its "days out" badge, counting from the first item that went to that job.</div>
-    <div class="hint">These thresholds apply to every tracked type — dehumidifiers, air scrubbers, air movers and tension poles alike. Ask your manager if the shop wants them changed.</div>
+    <div class="help-p">Every item on a job has a coloured stripe down its left edge and a badge showing what day it's on. You don't have to read dates to spot a problem.</div>
+
+    <details class="hstep"><summary><span class="n">1</span><span class="t">Green — days 1 to 3</span></summary>
+      <div class="hbody">Normal drying time. Nothing to do.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">2</span><span class="t">Yellow — days 4 and 5</span></summary>
+      <div class="hbody">Getting long. Worth a call to see whether it's ready to pull.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">3</span><span class="t">Red — day 6 and beyond</span></summary>
+      <div class="hbody">Too long. Either it's genuinely still needed, or it's been forgotten on site.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">4</span><span class="t">"Overdue" is a different thing</span></summary>
+      <div class="hbody">Overdue means past the return date set at checkout, whatever day it's on. A unit can be red for either reason, and they mean different things — one is "this has been out a while", the other is "this was promised back".</div>
+    </details>
   </div>
 
   <div class="help-section">
-    <div class="help-h"><span class="num">5</span>Equipment in Maintenance</div>
-    <div class="help-p">Equipment can go to Maintenance two ways: automatically, if it's flagged "Needs Repair" or "Out of Service" at check-in from a job — or directly from the shop, if something's found damaged before it ever goes out. Open the item and tap "Send to maintenance" to do that.</div>
-    <div class="help-p">Either way, it cannot be checked out directly to a job while in Maintenance. Once it's actually fixed, open the item and tap "Mark fixed — return to shop." Only then can it be checked out again.</div>
+    <div class="help-h"><span class="num">5</span>Equipment in maintenance</div>
+
+    <details class="hstep"><summary><span class="n">1</span><span class="t">Two ways something lands there</span></summary>
+      <div class="hbody">Automatically, when it's checked in as Needs Repair or Out of Service. Or directly, when you find something damaged in the shop — open the item and tap <b>Send to maintenance</b>.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">2</span><span class="t">It can't go out while it's there</span></summary>
+      <div class="hbody">It won't appear in the job kit list at all. That's deliberate.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">3</span><span class="t">Putting it back in service</span></summary>
+      <div class="hbody">Open the item and tap <b>Mark fixed — return to shop</b>. Only then can it be checked out again.</div>
+    </details>
   </div>
 
   <div class="help-section">
-    <div class="help-h"><span class="num">6</span>Moving equipment &amp; locations</div>
-    <div class="help-bullet">Use "Move equipment" on Home to relocate one or several items at once — for example, loading a van before heading to a job site, or moving gear between shop areas.</div>
-    <div class="help-bullet">"Manage locations" lets you set up the vans, trailers, or shop areas your team actually uses, so they show up when moving equipment.</div>
+    <div class="help-h"><span class="num">6</span>Moving equipment between the shop and vans</div>
+
+    <details class="hstep"><summary><span class="n">1</span><span class="t">Loading a van</span></summary>
+      <div class="hbody">Home screen → <b>Move equipment</b>. Choose the van at the top, tick what's going on it, tap Move. Or tap <b>Scan</b> and scan each unit as it goes in.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">2</span><span class="t">Setting up vans and shop areas</span></summary>
+      <div class="hbody">Home → <b>Manage locations</b>, or the gear icon → Locations. Anywhere equipment sits when it's not on a job: Water Van, Resto Van, Pick-up, a trailer, a storage unit.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">3</span><span class="t">Why this matters</span></summary>
+      <div class="hbody">Equipment on a van is still available to check out, but you know where it physically is. Someone looking for an air scrubber can see it's already on the Resto Van rather than hunting the shop for it.</div>
+    </details>
   </div>
 
   <div class="help-section">
-    <div class="help-h"><span class="num">7</span>Scanning &amp; finding equipment</div>
-    <div class="help-bullet">Tap "Scan" on Home to look up a specific item fast — point the camera at its tag.</div>
-    <div class="help-bullet">Use the Inventory tab to search by name, type, or model, or filter by status (Shop, On a Job, Missing, Maintenance).</div>
-    <div class="help-bullet">Shop supplies are further down the same Inventory tab — see section 7.</div>
+    <div class="help-h"><span class="num">7</span>Scanning equipment</div>
+    <div class="help-p">Every piece of equipment can carry a QR label. Scanning is faster than scrolling and removes typing mistakes.</div>
+
+    <details class="hstep"><summary><span class="n">1</span><span class="t">Allowing the camera</span></summary>
+      <div class="hbody">The first time you scan, the browser asks for camera permission. Say yes.<br><br>
+        <b>iPhone:</b> if you said no by accident, go to Settings → Safari → Camera → Allow, then reopen the app.<br>
+        <b>Android:</b> tap the padlock in the address bar → Permissions → Camera.<br>
+        <b>Computer:</b> the padlock in the address bar, same idea. A desktop without a webcam can still type codes in.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">2</span><span class="t">Putting a QR label on a unit</span></summary>
+      <div class="hbody">Home → <b>Add equipment</b>, or Edit on an existing one. Next to Asset ID, tap <b>Scan</b> and scan the label you're about to stick on. Whatever the label says becomes the asset ID, so the sticker and the record can't drift apart. It refuses a code already used by another unit.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">3</span><span class="t">Looking something up</span></summary>
+      <div class="hbody">The round <b>Scan</b> button in the middle of the bottom bar. Scan a unit's label and its page opens — status, where it is, who has it, its history. Scan a supply barcode and it opens the Consumables worksheet with that item added instead.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">4</span><span class="t">If it won't read</span></summary>
+      <div class="hbody">Fill the cyan square with the code and hold it square-on rather than at an angle. The app waits for two identical reads before accepting one, so give it a second — that's what stops it recording half a barcode.<br><br>Still nothing? Type the code into the box below the camera.</div>
+    </details>
   </div>
 
   <div class="help-section">
-    <div class="help-h"><span class="num">8</span>Shop supplies &amp; reordering</div>
-    <div class="help-p">The bottom of the <b>Inventory</b> tab tracks things that get used up rather than returned — trash bags, poly, tape, containment zippers. These are counted, not scanned, and they never appear on the map or on a pickup list, because nobody is driving out to collect a half-used roll of tape.</div>
-    <div class="help-step"><div class="n">1</div><div><div class="t">Took some? Tap the minus button</div><div class="d">Tap plus if you put some back. The count saves straight away.</div></div></div>
-    <div class="help-step"><div class="n">2</div><div><div class="t">Watch for the LOW STOCK badge</div><div class="d">Anything at or below its reorder point turns red and appears in the amber reorder strip at the top of the section.</div></div></div>
-    <div class="help-step"><div class="n">3</div><div><div class="t">Ordered more? Tap "Log order"</div><div class="d">Enter how many are coming. The item shows as On Order so nobody orders it twice. Your shop count doesn't change yet.</div></div></div>
-    <div class="help-step"><div class="n">4</div><div><div class="t">When it arrives, tap "Receive"</div><div class="d">That adds the delivery to your shop count and clears the order.</div></div></div>
-    <div class="help-p">There are two lists here. <b>Consumables</b> are used up and don't come back — plastic, tape, Vital Oxide, filters, Tyvek suits, trash bags. <b>Loadouts</b> are tools and gear that ride on the truck and return — toolbox, ladder, floor buffer, half masks, batteries. Both are counted the same way; they're split so nobody scrolls past ladders looking for trash bags.</div>
-    <div class="help-bullet"><b>+ Add supply</b> — pick which list it belongs to, name it, say what it's counted in (boxes, rolls, each), the count now, and the number to reorder at.</div>
-    <div class="help-p"><b>Scanning supplies.</b> Each supply can hold <b>as many barcodes as you need</b>. That matters because the same product from two manufacturers has two different UPCs — 6 mil 10x100 plastic from one brand won't scan the same as another brand's. Put both codes on the one item and either box scans to it. Your own printed shelf labels work the same way.</div>
-    <div class="help-step"><div class="n">1</div><div><div class="t">Set the codes up once, in Settings &rarr; Consumables</div><div class="d">Pick the supply, scan the box, say how many one scan is worth, Add. The screen shows how many of your supplies still need a code, so it's a job you can work through and finish.</div></div></div>
-    <div class="help-step"><div class="n">2</div><div><div class="t">Say what one scan is worth</div><div class="d">A case of 50 zippers should add 50, so put 50. A single roll of plastic stays 1. The case barcode and the single barcode can both sit on the same supply with different numbers.</div></div></div>
-    <div class="help-step"><div class="n">3</div><div><div class="t">Remove a code with the × on its chip</div><div class="d">Useful if a product is discontinued or a code was scanned by mistake.</div></div></div>
-    <div class="help-step"><div class="n">4</div><div><div class="t">Then just scan the delivery in</div><div class="d">Consumables &rarr; Receive shipment &rarr; Scan items. Scan a roll of 6 mil 10x100, then 20x100, then a case of zippers — each lands on the right line with the right quantity. Tap Receive once at the end. Nothing is saved until you do.</div></div></div>
-    <div class="hint">A code can only belong to one supply. If you scan something already attached elsewhere, the app says which item has it rather than quietly moving it.</div>
-    <div class="help-p"><b>Moving several at once.</b> The Consumables screen opens with a worksheet at the top. Pick what you're doing — <b>Load to truck</b>, <b>Return to shop</b>, or <b>Receive shipment</b> — tick the items, type the quantities, and tap apply once. The Total column shows what each count becomes before you commit, and it won't let you load more than the shop has.</div>
-    <div class="help-bullet"><b>Consumables</b> (Home screen) opens the same list with a summary across the top — how many supplies you track, how many need reordering, how many are on order — plus a print button for the shopping list.</div>
-    <div class="help-bullet">Each supply has its own reorder point. Change it with <b>Edit</b> on that supply. The Consumables screen also sets the default for anything added later, and an early-warning buffer if you'd rather be told before you actually hit the reorder point.</div>
-    <div class="hint">Printing a report includes three supply tables: full stock count, a shopping list of everything at or below its reorder point with suggested quantities, and anything still on order.</div>
+    <div class="help-h"><span class="num">8</span>Consumables and loadouts</div>
+    <div class="help-p">Two lists, same screen. <b>Consumables</b> get used up and don't come back — plastic, tape, filters, PPE. <b>Loadouts</b> are tools that ride on the truck and return — toolbox, ladder, floor buffer.</div>
+
+    <details class="hstep"><summary><span class="n">1</span><span class="t">The three movements</span></summary>
+      <div class="hbody"><b>Send out</b> — stock leaves the shop for a truck or a job. <b>Bring back</b> — it comes back. <b>Receive shipment</b> — a delivery arrives from the supplier.<br><br>The screen opens on Send out, because that's the everyday one.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">2</span><span class="t">Moving several at once</span></summary>
+      <div class="hbody">Pick the movement, choose where it's going, tick the items, type the quantities, tap the button once. The <b>Total</b> column shows what each count becomes before you commit, and it won't let you send more than the shop has.<br><br>Nothing is saved until you tap that button, so you can scan a whole pallet and back out if you're on the wrong rack.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">3</span><span class="t">Scanning supplies</span></summary>
+      <div class="hbody">Tap <b>Scan items</b> and work along the shelf. Each scan adds that item; scanning the same box twice counts two. If a code represents a case — 50 zippers in one box — one scan adds 50.<br><br>Scan something the app doesn't know and it asks what it is, then remembers. Every scan after that goes straight through.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">4</span><span class="t">Sending supplies to a job, not a truck</span></summary>
+      <div class="hbody">The destination list includes active jobs as well as trucks. Choosing a job records what that job consumed, which is what makes materials billable. Taking stock using the +/− buttons doesn't attribute it to anything — so for job materials, always use Send out.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">5</span><span class="t">Reading the stock list</span></summary>
+      <div class="hbody">Tap <b>Current stock</b> to open it; it starts closed. The counters along the top are filters — tap Consumables, Loadouts or Need reorder to narrow the list, tap again to clear.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">6</span><span class="t">Reorder levels</span></summary>
+      <div class="hbody">Each item has its own. Three settings:<br><br>
+        <b>Tell me when low, at a number</b> — flags at or below it.<br>
+        <b>Tell me when I'm completely out</b> — set the number to 0.<br>
+        <b>Don't track</b> — no alerts at all. Right for tools you own rather than restock: one floor buffer, one ladder.<br><br>
+        There's also a warning buffer at the bottom of the screen: set it to 2 and something with a reorder point of 5 starts flagging at 7, giving you lead time.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">7</span><span class="t">Logging and receiving an order</span></summary>
+      <div class="hbody"><b>Log order</b> records how many are coming without changing your count, so nobody orders it twice. When it lands, <b>Receive</b> adds it to the shelf and clears the order. <b>Cancel order</b> is there for when a supplier can't fill it.</div>
+    </details>
   </div>
 
   <div class="help-section">
-    <div class="help-h"><span class="num">9</span>The map</div>
-    <div class="help-p">The <b>Map</b> tab shows every place equipment is sitting right now. Each pin carries the number of units there — amber for a job site, cyan for the shop, red and pulsing if something there is overdue.</div>
-    <div class="help-bullet"><b>Tap a pin</b> for the equipment list at that address, plus Apple, Google and Waze buttons that open turn-by-turn directions.</div>
-    <div class="help-bullet"><b>My location</b> asks your phone where you are, then lists job sites nearest to you first — useful when you need two more air movers and want to know whether the closest ones are on a finishing job or back at the shop.</div>
-    <div class="help-bullet"><b>Shop</b> snaps the map back to the yard. <b>Refresh</b> retries any address that couldn't be found.</div>
-    <div class="help-bullet">On a phone, use <b>two fingers</b> to move and zoom the map. One finger scrolls the page, so the map doesn't trap your thumb.</div>
-    <div class="hint">A job only appears on the map if its customer has an address saved. Anything without one is listed underneath the map rather than quietly left off.</div>
+    <div class="help-h"><span class="num">9</span>Barcodes for supplies</div>
+    <div class="help-p">Set up in <b>gear icon → Consumables</b>. One person does this once; everyone else just scans.</div>
+
+    <details class="hstep"><summary><span class="n">1</span><span class="t">Attaching a code</span></summary>
+      <div class="hbody">Pick the supply, scan the box or type the UPC, say how many one scan is worth, tap Add code. The screen shows how many of your supplies still need a code, and lists the ones missing first, so it's a job you can work through and finish.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">2</span><span class="t">The same product from two suppliers</span></summary>
+      <div class="hbody">Different manufacturers put different UPCs on the same thing. Add every code you encounter to the one supply — 6 mil 10x100 can answer to three barcodes. A code can only belong to one supply, so the app tells you if you've used it elsewhere.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">3</span><span class="t">Cases versus singles</span></summary>
+      <div class="hbody">Each code has its own quantity. The case barcode can be worth 50 and the single-item barcode worth 1, both on the same supply.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">4</span><span class="t">If a code looks too short</span></summary>
+      <div class="hbody">The app warns about very short all-digit codes because they're usually half a barcode — and half a barcode will never match a proper scan later. Six and seven digit codes are left alone; store SKUs are often that short.</div>
+    </details>
   </div>
 
   <div class="help-section">
-    <div class="help-h"><span class="num">10</span>Job history &amp; reports</div>
-    <div class="help-bullet">Open any job to see a two-column report — everything Sent Out, and everything Returned to Shop, each with its date.</div>
-    <div class="help-bullet">Reports can be printed or saved as a PDF directly from the job page.</div>
+    <div class="help-h"><span class="num">10</span>The map</div>
+
+    <details class="hstep"><summary><span class="n">1</span><span class="t">Reading the pins</span></summary>
+      <div class="hbody">Each pin carries the number of units there. Amber is a job site, cyan is the shop, red and pulsing means something there is overdue. Tap one for the equipment list, the address, and Apple / Google / Waze buttons for directions.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">2</span><span class="t">Moving the map on a phone</span></summary>
+      <div class="hbody">Use <b>two fingers</b> to pan and pinch. One finger scrolls the page, so the map doesn't trap your thumb while you're trying to get past it. On a computer, drag with the mouse and zoom with the wheel.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">3</span><span class="t">Finding what's nearest</span></summary>
+      <div class="hbody">Tap <b>My location</b> and allow the prompt. Job sites are then listed nearest first with distances — useful when you need two more air movers and want to know whether the closest are on a finishing job or back at the shop.<br><br>Location needs permission, same as the camera. Denied it by accident? Same place in your browser settings.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">4</span><span class="t">Filtering by type</span></summary>
+      <div class="hbody">The chips above the map filter the pins. Tap Air Mover to see only those; tap Air Scrubber as well to see both. Tap All to clear. The counts update as you filter.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">5</span><span class="t">The list underneath</span></summary>
+      <div class="hbody">Switch between <b>By location</b> — each job with its equipment grouped by type — and <b>By equipment</b> — each type and everywhere it's sitting. The first answers "what's at this job", the second answers "where are my dehus".</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">6</span><span class="t">If a job isn't on the map</span></summary>
+      <div class="hbody">It has no address saved, or the address couldn't be found. Either way it's listed under the map rather than silently left off. Fix it by opening the job and tapping the address line.</div>
+    </details>
   </div>
 
   <div class="help-section">
-    <div class="help-h"><span class="num">11</span>Adding, editing &amp; removing equipment</div>
-    <div class="help-bullet"><b>Add Equipment</b> (Home) — enter the type, model, and an ID tag. The ID tag is what gets scanned, so make sure it's applied to the item itself.</div>
-    <div class="help-bullet"><b>Edit</b> — open any item's page to correct its details.</div>
-    <div class="help-bullet"><b>Recently Deleted</b> (Home) — accidentally removed something? Restore it here.</div>
+    <div class="help-h"><span class="num">11</span>Reports and billing</div>
+
+    <details class="hstep"><summary><span class="n">1</span><span class="t">A job's own report</span></summary>
+      <div class="hbody">Open the job and use the icons at the top. The document icon gives a formal letterhead report: what's currently out, everything sent with dates, everything returned, and the materials the job consumed.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">2</span><span class="t">Materials for invoicing</span></summary>
+      <div class="hbody">Consumables are shown <b>net</b> — 10 rolls out, 2 brought back, bills as 8. Tools are listed separately with whether they came back, which doubles as a check for anything still sitting on site.<br><br>This only counts supplies sent through <b>Send out</b> with the job chosen. Anything taken with the +/− buttons isn't attributed to a job.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">3</span><span class="t">Saving or printing</span></summary>
+      <div class="hbody"><b>Computer:</b> the save icon makes a PDF straight to your Downloads.<br>
+        <b>iPhone:</b> choose Save as PDF or Save to Files on the print screen.<br>
+        <b>Android:</b> choose Save as PDF on the print screen.<br><br>
+        Either way you get a file you can attach to an email or an estimate.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">4</span><span class="t">Shop-wide reports</span></summary>
+      <div class="hbody">The <b>Reports</b> tab covers the whole fleet: totals, a breakdown by job site, by equipment type, and everything overdue. Use the picker to choose which sections to show and print. Supply stock, a shopping list and pending orders are included on the printed version.</div>
+    </details>
   </div>
 
   <div class="help-section">
-    <div class="help-h"><span class="num">12</span>Team, shop details &amp; settings</div>
-    <div class="help-bullet"><b>Manage Team</b> (Home, or the gear icon) — keep this current; it's what populates "assigned to" during checkout.</div>
-    <div class="help-bullet"><b>Settings</b> (the gear icon, top right) — holds the shop address and where the shop sits on the map. Change it here and it updates for everyone, on every device.</div>
-    <div class="help-bullet">If the shop pin lands on the wrong building, open Settings and use <b>Pick on map</b> to tap your yard directly. That always works, even when an address won't look up.</div>
+    <div class="help-h"><span class="num">12</span>Adding, editing and removing equipment</div>
+
+    <details class="hstep"><summary><span class="n">1</span><span class="t">Adding a unit</span></summary>
+      <div class="hbody">Home → <b>Add equipment</b>. Pick the type and the app suggests the next ID in that series — DH-015, A-0066. Or scan the QR label you're applying and use that instead.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">2</span><span class="t">Fixing a mistake</span></summary>
+      <div class="hbody">Open the item and tap <b>Edit</b>. Changing the asset ID is fine, but if you've already printed a label, the old one stops scanning until you reprint it.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">3</span><span class="t">Retire versus delete</span></summary>
+      <div class="hbody"><b>Retire</b> keeps the unit and its history but takes it out of circulation — right for something sold or scrapped. <b>Delete</b> removes it, recoverable for 30 days from Home → <b>Recently deleted</b>.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">4</span><span class="t">Missing equipment</span></summary>
+      <div class="hbody">Tap <b>Report missing</b> on the item. It shows red everywhere and appears on the Missing count in Reports. Found later, tap <b>Mark found</b> and it returns to the shop.</div>
+    </details>
   </div>
 
   <div class="help-section">
-    <div class="help-h"><span class="num">13</span>Key terms</div>
-    <div class="help-bullet"><b>Job</b> — a customer and address that equipment is checked out to.</div>
-    <div class="help-bullet"><b>Active Job</b> — currently has equipment checked out to it.</div>
-    <div class="help-bullet"><b>Post Job</b> — everything on it has been returned to the shop.</div>
-    <div class="help-bullet"><b>Tracked equipment</b> — a numbered unit that goes out and comes back: dehus, air movers, scrubbers, tension poles.</div>
-    <div class="help-bullet"><b>Day count</b> — how many days since the item was checked out. Drives the green / yellow / red stripe.</div>
-    <div class="help-bullet"><b>Consumable</b> — a supply that gets used up and isn't returned. Counted at the shop, never checked out to a job.</div>
-    <div class="help-bullet"><b>Reorder point</b> — the number you set for a supply. At or below it, the app flags LOW STOCK.</div>
+    <div class="help-h"><span class="num">13</span>Team, shop details and settings</div>
+
+    <details class="hstep"><summary><span class="n">1</span><span class="t">Who can be assigned to jobs</span></summary>
+      <div class="hbody">Gear icon → <b>Team</b>, or Home → Manage team. Removing someone takes them off the assignment list; past job history stays exactly as recorded.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">2</span><span class="t">The shop address</span></summary>
+      <div class="hbody">Gear icon → the address at the top. Change it here and it updates for everyone on every device. If the map pin lands on the wrong building, use <b>Pick on map</b> and tap your actual yard — that always works, even when an address won't look up.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">3</span><span class="t">Everything syncs</span></summary>
+      <div class="hbody">Every change writes to the shop's shared records straight away, and other phones pick it up within about 20 seconds. Two people can work at once. What doesn't sync is your light/dark choice, which stays on your own device.</div>
+    </details>
   </div>
 
-  <div class="hint" style="margin-top:4px;">Questions this guide doesn't answer? Ask your manager — this covers the day-to-day basics, not every edge case.</div>
+  <div class="help-section">
+    <div class="help-h"><span class="num">14</span>Key terms</div>
+    <div class="help-bullet"><b>Job</b> — a customer and address equipment is checked out to.</div>
+    <div class="help-bullet"><b>Active Job</b> — currently has equipment out.</div>
+    <div class="help-bullet"><b>Post Job</b> — everything on it has been returned.</div>
+    <div class="help-bullet"><b>Tracked equipment</b> — a numbered unit that goes out and comes back: dehus, air movers, scrubbers, tension poles, ozone machines.</div>
+    <div class="help-bullet"><b>Consumable</b> — a supply that gets used up and isn't returned.</div>
+    <div class="help-bullet"><b>Loadout</b> — a tool that rides on the truck and comes back.</div>
+    <div class="help-bullet"><b>Reorder point</b> — the number that triggers LOW STOCK for a supply.</div>
+    <div class="help-bullet"><b>Day count</b> — days since checkout. Drives the green / yellow / red stripe.</div>
+    <div class="help-bullet"><b>Overdue</b> — past the return date set at checkout.</div>
+  </div>
+
+  <div class="hint" style="margin-top:4px;">Something this guide doesn't cover? Ask your manager — this is the day-to-day, not every edge case.</div>
+
 </div></div>
 
 <!-- Check out -->
