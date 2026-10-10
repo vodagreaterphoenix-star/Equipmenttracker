@@ -1991,9 +1991,16 @@ body.modal-open #mapCanvas{ visibility:hidden; }
     <input id="conQty" type="number" min="0" step="1" value="0">
   </div>
   <div class="field">
-    <label>Reorder when it drops to</label>
-    <input id="conMinQty" type="number" min="0" step="1" value="5">
-    <div class="hint">At or below this number it's flagged LOW STOCK on the Inventory tab.</div>
+    <label>Reorder alerts</label>
+    <div class="seg" id="conTrackSeg">
+      <button type="button" id="conTrackOn" onclick="setConTrack(true)">Tell me when low</button>
+      <button type="button" id="conTrackOff" onclick="setConTrack(false)">Don't track</button>
+    </div>
+    <div id="conMinWrap" style="margin-top:10px;">
+      <input id="conMinQty" type="number" min="0" step="1" value="5">
+      <div class="hint">At or below this number it's flagged LOW STOCK. Use 0 for something you reorder but keep none spare of.</div>
+    </div>
+    <div class="hint" id="conNoTrackNote" style="display:none;">No alerts for this one. Good for tools you own rather than restock — one floor buffer, one ladder.</div>
   </div>
   <div class="btn-row"><button class="btn btn-primary" onclick="confirmSaveConsumable()">Save supply</button></div>
   <div id="conDeleteWrap" style="display:none;margin-top:14px;">
@@ -5077,6 +5084,7 @@ let orderingConsumableId = null;
    the numbers. On order wins, because that's the actionable state. */
 function conStatus(c){
   if(Number(c.orderedQty) > 0) return 'On Order';
+  if(!conTracksReorder(c)) return 'In Shop';
   if(Number(c.qty) <= Number(c.minQty)) return 'Low Stock';
   return 'In Shop';
 }
@@ -5092,9 +5100,17 @@ function conBadge(c){
 function conCat(c){ return c && c.cat === 'loadout' ? 'loadout' : 'consumable'; }
 function conList(cat){ return consumables.filter(c=>conCat(c)===cat); }
 
+/* Items you simply own rather than restock — one floor buffer, one
+   ladder — shouldn't nag. minQty of -1 (shown as "Don't track") turns
+   reorder alerts off for that item entirely.
+
+   Note that minQty 0 is NOT the same thing: that means "tell me when I'm
+   completely out", which is a reasonable setting for something you do
+   reorder but keep none spare of. */
+function conTracksReorder(c){ return Number(c.minQty) >= 0; }
+
 function conIsLow(c){
-  // At or below the reorder point, plus whatever early-warning buffer the
-  // shop has set, so you're told before you're actually short.
+  if(!conTracksReorder(c)) return false;
   return Number(c.qty) <= Number(c.minQty) + conWarnBuffer();
 }
 
@@ -5221,7 +5237,7 @@ function renderConsumables(){
         <div class="con-ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18l-1.6 12.2a2 2 0 0 1-2 1.8H6.6a2 2 0 0 1-2-1.8Z"/><path d="M8 7V5a4 4 0 0 1 8 0v2"/></svg></div>
         <div class="con-body">
           <div class="con-name">${escapeHtml(c.name)}</div>
-          <div class="con-meta">${conBadge(c)} &nbsp;Reorder at ${min} ${unit}${ord>0?` &middot; ${ord} ${unit} on order`:''}</div>
+          <div class="con-meta">${conBadge(c)} &nbsp;${conTracksReorder(c)?`Reorder at ${min} ${unit}`:'Not reorder-tracked'}${ord>0?` &middot; ${ord} ${unit} on order`:''}</div>
         </div>
         <div class="con-qty-wrap">
           <button class="con-step" onclick="adjustConsumable('${c.id}',-1)" ${qty<=0?'disabled':''} aria-label="One less">&minus;</button>
@@ -5532,6 +5548,15 @@ async function cmRemoveCode(id, code){
   showToast('Code removed');
 }
 
+let conTrackOn = true;
+function setConTrack(on){
+  conTrackOn = !!on;
+  document.getElementById('conTrackOn').classList.toggle('active', conTrackOn);
+  document.getElementById('conTrackOff').classList.toggle('active', !conTrackOn);
+  document.getElementById('conMinWrap').style.display = conTrackOn ? 'block' : 'none';
+  document.getElementById('conNoTrackNote').style.display = conTrackOn ? 'none' : 'block';
+}
+
 let conFormCat = 'consumable';
 function setConCat(cat){
   conFormCat = cat === 'loadout' ? 'loadout' : 'consumable';
@@ -5555,6 +5580,7 @@ function openAddConsumable(cat){
   fillSupplyDropdown(null);
   document.getElementById('conQty').value = 0;
   document.getElementById('conMinQty').value = conDefaultMin();
+  setConTrack(true);
   document.getElementById('conDeleteWrap').style.display = 'none';
   openModal('modalConsumable');
 }
@@ -5571,7 +5597,8 @@ function openEditConsumable(id){
     ? `Scans from ${codes.length} code${codes.length!==1?'s':''} \u2014 manage them in Settings \u2192 Consumables.`
     : 'No barcodes yet. Add them in Settings \u2192 Consumables.';
   document.getElementById('conQty').value = Number(c.qty)||0;
-  document.getElementById('conMinQty').value = Number(c.minQty)||0;
+  setConTrack(conTracksReorder(c));
+  document.getElementById('conMinQty').value = Math.max(0, Number(c.minQty)||0);
   document.getElementById('conDeleteWrap').style.display = 'block';
   openModal('modalConsumable');
 }
@@ -5579,7 +5606,9 @@ async function confirmSaveConsumable(){
   const name = conFormName();
   if(!name){ showToast('Pick an item from the list, or choose "Something else…"'); return; }
   const qty = Math.max(0, parseInt(document.getElementById('conQty').value,10) || 0);
-  const minQty = Math.max(0, parseInt(document.getElementById('conMinQty').value,10) || 0);
+  const minQty = conTrackOn
+    ? Math.max(0, parseInt(document.getElementById('conMinQty').value,10) || 0)
+    : -1;                                  // -1 = no reorder alerts
   const unit = document.getElementById('conUnit').value.trim();
 
 
