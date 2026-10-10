@@ -5122,7 +5122,6 @@ let conStockOpen = false;
 function toggleStockList(){
   conStockOpen = !conStockOpen;
   applyStockVisibility();
-  try{ localStorage.setItem('voda-con-stock-open', conStockOpen ? '1' : '0'); }catch(e){}
 }
 function applyStockVisibility(){
   const wrap = document.getElementById('conStockWrap');
@@ -5143,7 +5142,10 @@ function setConFilter(f){
 function openSupplies(){
   document.getElementById('supDefaultMin').value  = conDefaultMin();
   document.getElementById('supWarnBuffer').value  = conWarnBuffer();
-  try{ conStockOpen = localStorage.getItem('voda-con-stock-open') === '1'; }catch(e){}
+  // Always opens collapsed. The screen is for moving materials; the
+  // stock list is there when you ask for it.
+  conStockOpen = false;
+  conFilter = 'all';
   renderConsumables();
   bwSetModeKeeping(bwMode);   // paints the worksheet, keeps anything ticked
   openModal('modalSupplies');
