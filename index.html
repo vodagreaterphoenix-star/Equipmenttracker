@@ -4729,26 +4729,32 @@ document.addEventListener('toggle', e=>{
   const sec = e.target;
   if(!(sec instanceof HTMLDetailsElement) || !sec.classList.contains('hsec')) return;
   if(!sec.open) return;
+
+  // Close whatever else was open first.
   sec.parentElement.querySelectorAll('details.hsec[open]').forEach(other=>{
     if(other !== sec) other.open = false;
   });
-  // The sheet is the thing that scrolls, not the page.
+
   const sheet = sec.closest('.sheet');
   if(!sheet) return;
   const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  requestAnimationFrame(()=>{
-    // Leave a gap above the heading. Scrolling it flush to the top tucks
-    // it under the sheet's rounded edge and handle, which looks like the
-    // card has been cut off. Also: don't scroll at all if the whole
-    // section already fits on screen.
-    const GAP = 56;
-    const secTop = sec.offsetTop;
-    const secBottom = secTop + sec.offsetHeight;
-    const viewTop = sheet.scrollTop;
-    const viewBottom = viewTop + sheet.clientHeight;
-    if(secTop >= viewTop && secBottom <= viewBottom) return;
-    sheet.scrollTo({ top: Math.max(0, secTop - GAP), behavior: smooth ? 'smooth' : 'auto' });
-  });
+
+  /* Measure AFTER the browser has re-laid everything out. Closing a tall
+     section above this one moves it hundreds of pixels up the sheet, and
+     measuring before that reflow lands is why the view used to jump way
+     past the heading. Two frames: one for the collapse, one for the
+     resulting layout. */
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    const GAP = 14;
+    // Position of the heading relative to the sheet's scrollable content.
+    const top = sec.getBoundingClientRect().top
+              - sheet.getBoundingClientRect().top
+              + sheet.scrollTop;
+    const target = Math.max(0, top - GAP);
+    // Already sitting nicely? Leave it alone.
+    if(Math.abs(sheet.scrollTop - target) < 24) return;
+    sheet.scrollTo({ top: target, behavior: smooth ? 'smooth' : 'auto' });
+  }));
 }, true);   // capture: the toggle event doesn't bubble
 
 /* ============ INIT ============ */
