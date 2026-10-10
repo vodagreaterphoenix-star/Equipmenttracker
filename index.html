@@ -1530,8 +1530,11 @@ body.modal-open #mapCanvas{ visibility:hidden; }
   </div>
   <div class="field">
     <label>Asset ID</label>
-    <input id="addId" placeholder="Auto-suggested from type">
-    <div class="hint" id="addIdHint">Pick a type to auto-generate the next ID, or type your own.</div>
+    <div style="display:flex;gap:8px;">
+      <input id="addId" style="flex:1;text-transform:uppercase;" placeholder="Auto-suggested from type">
+      <button class="btn btn-ghost" style="width:auto;padding:0 14px;" onclick="openScanForAssetId('addId')">Scan</button>
+    </div>
+    <div class="hint" id="addIdHint">Pick a type to auto-generate the next ID, or scan the QR label you're putting on the unit.</div>
   </div>
   <div class="field">
     <label>Make / model</label>
@@ -1561,7 +1564,10 @@ body.modal-open #mapCanvas{ visibility:hidden; }
   </div>
   <div class="field">
     <label>Asset ID</label>
-    <input id="editId" style="text-transform:uppercase;">
+    <div style="display:flex;gap:8px;">
+      <input id="editId" style="flex:1;text-transform:uppercase;">
+      <button class="btn btn-ghost" style="width:auto;padding:0 14px;" onclick="openScanForAssetId('editId')">Scan</button>
+    </div>
     <div class="hint">Only change this if it was mistyped. If you've already printed a barcode/QR label for this item, changing the ID means the old label will stop scanning until you reprint it.</div>
   </div>
   <div class="field">
@@ -4192,6 +4198,21 @@ function lookupCode(code){
     cmAddCode(clean);              // attaches it to the supply chosen above
     return {ok:true, msg:clean};
   }
+  if(scanMode === 'assetId'){
+    closeScan();
+    const code = normCode(clean);
+    const clash = inventory.find(i=>
+      String(i.id).toUpperCase() === code &&
+      !(assetIdTarget === 'editId' && i.id === currentDetailId));
+    if(clash){
+      showToast(`${code} is already ${clash.type}${clash.deletedAt?' (deleted)':''}`);
+      return {ok:false, msg:`${code} already in use`};
+    }
+    const box = document.getElementById(assetIdTarget || 'addId');
+    if(box) box.value = code;
+    showToast(`Asset ID set to ${code}`);
+    return {ok:true, msg:code};
+  }
   if(scanMode === 'assignCode'){
     closeScan();
     document.getElementById('asCodeInput').value = normCode(clean);
@@ -5780,6 +5801,15 @@ async function bwApply(){
    manufacturer's barcode. ------------------------------------------- */
 function openScanForSupplies(){ openScan('supplies'); }
 function openScanForAssign(){ openScan('assignCode'); }
+
+/* Reads a QR or barcode straight into an Asset ID field, so the label
+   that's going on the unit is the label the app stores — no typing, no
+   transcription mistakes. */
+let assetIdTarget = null;
+function openScanForAssetId(fieldId){
+  assetIdTarget = fieldId;
+  openScan('assetId');
+}
 function openScanForSupplyCode(){ openScan('supplyCode'); }
 
 /* Scanners aren't consistent about UPC formats: the same box can come
