@@ -388,7 +388,10 @@ nav.bottom .navbtn.scanbtn{color:var(--cyan-dark);}
   display:none;align-items:flex-end;justify-content:center;
 }
 .overlay.active{display:flex;}
-#modalScan{z-index:200;}
+/* The camera must always be the topmost sheet. Anything that opens a
+   scanner — the job kit, the move list, the assign-a-code sheet — stays
+   open underneath and comes back into view when the camera closes. */
+#modalScan{z-index:300;}
 #modalAssign{z-index:250;} /* asks what an unknown code is — must clear the scanner */ /* scanner opens on top of Job Kit / Move / Return, which stay open underneath */
 #modalIn, #modalOut{z-index:150;} /* Check In / Check Out can open while a job page stays open underneath, same reasoning as modalScan above */
 .sheet{
@@ -5680,7 +5683,8 @@ function renderConsumables(){
         <div class="con-ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18l-1.6 12.2a2 2 0 0 1-2 1.8H6.6a2 2 0 0 1-2-1.8Z"/><path d="M8 7V5a4 4 0 0 1 8 0v2"/></svg></div>
         <div class="con-body">
           <div class="con-name">${escapeHtml(c.name)}</div>
-          <div class="con-meta">${conBadge(c)} &nbsp;${conTracksReorder(c)?`Reorder at ${min} ${unit}`:'Not reorder-tracked'}${ord>0?` &middot; ${ord} ${unit} on order`:''}</div>
+          <div class="con-meta">${conBadge(c)} ${supplyCodeBadges(c)}</div>
+          <div class="con-meta" style="margin-top:3px;">${conTracksReorder(c)?`Reorder at ${min} ${unit}`:'Not reorder-tracked'}${ord>0?` &middot; ${ord} ${unit} on order`:''}</div>
         </div>
         <div class="con-qty-wrap">
           <button class="con-step" onclick="adjustConsumable('${c.id}',-1)" ${qty<=0?'disabled':''} aria-label="One less">&minus;</button>
@@ -5874,6 +5878,29 @@ function supplyCodeObjs(c){
 /* Just the code strings, for matching. */
 function supplyCodes(c){ return supplyCodeObjs(c).map(b=>b.code); }
 /* How many units one scan of this code adds. */
+/* What kinds of barcode an item carries. Techs scan the everyday code;
+   receiving may also have a bulk/case code that only works on deliveries.
+   Plenty of items use the same barcode for both — those just have an
+   everyday code and no bulk one. */
+function supplyCodeSummary(c){
+  const objs = supplyCodeObjs(c);
+  return {
+    total: objs.length,
+    everyday: objs.filter(b=>!b.recvOnly).length,
+    bulk: objs.filter(b=>b.recvOnly).length
+  };
+}
+/* Small badges used on the stock cards and the setup checklist. */
+function supplyCodeBadges(c){
+  const k = supplyCodeSummary(c);
+  if(!k.total) return '<span class="badge lowstock">No code</span>';
+  let h = '';
+  if(k.everyday) h += `<span class="badge instock" title="Scans in any mode">Scan${k.everyday>1?` ${k.everyday}`:''}</span>`;
+  if(k.bulk)     h += ` <span class="badge onorder" title="Receiving only — case or bulk">Bulk${k.bulk>1?` ${k.bulk}`:''}</span>`;
+  if(!k.everyday) h += ' <span class="badge lowstock" title="Techs have nothing to scan">No tech code</span>';
+  return h;
+}
+
 function supplyCodeObj(c, code){
   const key = codeKey(code);
   return supplyCodeObjs(c).find(b=>codeKey(b.code) === key) || null;
@@ -5940,18 +5967,24 @@ function renderCodeManager(){
   const done = consumables.filter(x=>supplyCodes(x).length).length;
   const all = document.getElementById('cmAll');
   const partials = consumables.reduce((n,x)=>n + supplyCodeObjs(x).filter(b=>looksPartial(b.code)).length, 0);
+  const noTech = consumables.filter(x=>{ const k = supplyCodeSummary(x); return k.total && !k.everyday; }).length;
+  const withBulk = consumables.filter(x=>supplyCodeSummary(x).bulk).length;
   all.innerHTML = `<div class="hint" style="margin-top:0;margin-bottom:10px;">
-      <b>${done} of ${consumables.length}</b> set up. The ones still missing a code are listed first.
+      <b>${done} of ${consumables.length}</b> set up &middot; ${withBulk} with a bulk/receiving code.<br>
+      <span style="color:var(--green);font-weight:700;">Scan</span> = techs can scan it any time.
+      <span style="color:var(--amber);font-weight:700;">Bulk</span> = receiving only, a case or carton.
     </div>` +
+    (noTech ? `<div class="banner banner-amber" style="margin-bottom:10px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8A5A00" stroke-width="2.2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+      <span>${noTech} item${noTech>1?'s have':' has'} only a bulk code. Techs can't scan ${noTech>1?'them':'it'} when loading a truck — add the single-item barcode too.</span>
+    </div>` : '') +
     (partials ? `<div class="banner banner-amber" style="margin-bottom:10px;">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8A5A00" stroke-width="2.2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
       <span>${partials} code${partials>1?'s look':' looks'} like a partial scan (marked red). Delete and rescan those boxes — a correct scan won't match them.</span>
     </div>` : '') +
     (rows.length ? rows.map(x=>{
       const objs2 = supplyCodeObjs(x);
-      const mark = objs2.length
-        ? `<span class="badge instock">${objs2.length} code${objs2.length!==1?'s':''}</span>`
-        : `<span class="badge lowstock">No code</span>`;
+      const mark = supplyCodeBadges(x);
       return `<div class="con-card" style="padding:10px 12px;cursor:pointer;" onclick="cmPick('${x.id}')">
         <div style="display:flex;align-items:center;gap:8px;">
           <div style="flex:1;min-width:0;font-weight:700;font-size:13.5px;">${escapeHtml(x.name)}
