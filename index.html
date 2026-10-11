@@ -6060,8 +6060,13 @@ async function cmAddCode(code){
   if(!raw){ showToast('Scan a box or type the code in first'); return; }
   // A code can only point at one supply, or a scan is ambiguous.
   const clash = consumables.find(x=>supplyCodes(x).some(sc=>codeKey(sc)===codeKey(raw)));
-  if(clash){
-    showToast(clash.id===c.id ? 'Already on this supply' : `That code is already on ${clash.name}`);
+  /* On a DIFFERENT supply, refuse — one code can only mean one thing.
+     On THIS supply, re-adding means "I got the quantity wrong, use this
+     one instead". Refusing that was why a case code first saved as 1
+     could never be corrected to 12: the second attempt was rejected and
+     the old value stayed. */
+  if(clash && clash.id !== c.id){
+    showToast(`That code is already on ${clash.name}`);
     return;
   }
   if(looksPartial(raw) && !confirm(
@@ -6070,7 +6075,9 @@ async function cmAddCode(code){
   }
   const per = Math.max(1, parseInt(document.getElementById('cmPer').value,10) || 1);
   const recvOnly = !!document.getElementById('cmRecvOnly').checked;
-  c.barcodes = [...supplyCodeObjs(c), { code: raw, per, recvOnly }];
+  const existing = supplyCodeObjs(c).filter(b=>codeKey(b.code) !== codeKey(raw));
+  const replacing = existing.length !== supplyCodeObjs(c).length;
+  c.barcodes = [...existing, { code: raw, per, recvOnly }];
   delete c.barcode;                       // upgrade the old single-code field
   box.value = '';
   document.getElementById('cmPer').value = 1;
@@ -6080,8 +6087,10 @@ async function cmAddCode(code){
   // whether it actually reached the Sheet.
   const saved = await saveConsumablesChecked();
   if(!saved) return;
-  showToast(per > 1 ? `${raw} adds ${per} ${c.unit||''} of ${c.name}`.trim()
-                    : `${raw} now scans to ${c.name}`);
+  showToast(
+    (replacing ? 'Updated: ' : '') +
+    (per > 1 ? `${raw} adds ${per} ${c.unit||''} of ${c.name}`.trim()
+             : `${raw} now scans to ${c.name}`));
   // Setup done — drop this sheet and land on the worksheet set to receive,
   // which is what you came here to do next.
   const recvBox = document.getElementById('cmRecvOnly');
