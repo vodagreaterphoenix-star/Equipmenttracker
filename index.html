@@ -869,6 +869,18 @@ body.modal-open #mapCanvas{ visibility:hidden; }
   padding:10px 12px;margin-bottom:10px;
 }
 .bw-foot .bw-count{color:var(--blue);font-weight:700;}
+/* Shaped like the Scan items / Assign a code buttons it sits beside —
+   same height, radius and type — just filled teal so it reads as the
+   action rather than another option. */
+.bw-submit{
+  -webkit-appearance:none;appearance:none;cursor:pointer;flex-shrink:0;
+  background:var(--cyan);color:var(--navy);
+  border:1px solid var(--cyan);border-radius:10px;
+  padding:9px 16px;font-size:12.5px;font-weight:700;font-family:inherit;
+  display:flex;align-items:center;gap:6px;line-height:1.2;
+}
+.bw-submit:active{opacity:.85;}
+.bw-submit[disabled]{opacity:.45;pointer-events:none;}
 .bw-count{font-size:13.5px;color:var(--muted);}
 /* Barcode chips on the supply form */
 .code-list{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px;}
@@ -885,8 +897,7 @@ body.modal-open #mapCanvas{ visibility:hidden; }
   font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;
 }
 .code-empty{font-size:12px;color:var(--muted);margin-bottom:9px;}
-/* .btn carries flex:1, which stretches it across the footer. Pin it. */
-.bw-foot .btn{flex:0 0 auto;min-width:130px;}
+
 /* ===== END CONSUMABLES BATCH WORKSHEET (CSS) ===== */
 /* ===== Help guide: expandable steps ===== */
 .help-intro{font-size:12.5px;color:var(--muted);background:var(--gray-bg);
@@ -2221,7 +2232,7 @@ details.hsec{scroll-margin-top:8px;}
   </div>
   <div class="bw-foot" id="bwFoot" style="display:none;">
     <span class="bw-count" id="bwCount">Nothing selected</span>
-    <button class="btn btn-cyan" style="width:auto;padding:0 18px;" id="bwApply" onclick="bwApply()">Apply</button>
+    <button class="bw-submit" id="bwApply" onclick="bwApply()">Apply</button>
   </div>
   <input id="bwSearch" placeholder="Filter the list…" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-size:13px;margin-bottom:10px;" oninput="bwRender()">
   <div class="bw-wrap">
