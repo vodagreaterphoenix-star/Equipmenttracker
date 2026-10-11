@@ -1808,12 +1808,13 @@ details.hsec{scroll-margin-top:8px;}
     <div class="scan-status" id="scanStatusTxt">Starting camera…</div>
   </div>
   <div id="scanLastResult" class="scan-last-result"></div>
+  <div class="btn-row" id="scanDoneRow" style="display:none;margin-top:12px;"><button class="btn btn-cyan" onclick="closeScan()">Done — add to list</button></div>
   <div class="or-div" id="scanManualDiv">or enter code manually</div>
   <div class="field" style="margin-bottom:6px;">
     <input id="manualCode" placeholder="e.g. DH-005" style="text-transform:uppercase;" onkeydown="if(event.key==='Enter')manualLookup()">
   </div>
   <div class="btn-row"><button class="btn btn-primary" id="scanManualBtn" onclick="manualLookup()">Look up</button></div>
-  <div class="btn-row" id="scanDoneRow" style="display:none;"><button class="btn btn-cyan" onclick="closeScan()">Done — back to the list</button></div>
+
 </div></div>
 
 <!-- Add item -->
@@ -4437,6 +4438,11 @@ async function confirmKit(){
 /* ============ SCAN ============ */
 let lastScanCode = null;
 let lastScanTime = 0;
+/* How many scans have been accepted since the camera opened. The banner
+   used to show the number of distinct items, so scanning two cases of the
+   same thing still read "1 total" — which looks like the second scan was
+   ignored even though the quantity went up. */
+let scanSessionCount = 0;
 const SCAN_COOLDOWN_MS = 2000; // ignore the same code again for this long, so a still-visible label doesn't get reprocessed 10x/sec
 
 async function openScan(mode){
@@ -4444,6 +4450,7 @@ async function openScan(mode){
   lastScanCode = null;
   lastScanTime = 0;
   pendingScan = null; pendingScanCount = 0;
+  scanSessionCount = 0;
   openModal('modalScan');
   document.getElementById('manualCode').value='';
   const lastResultEl = document.getElementById('scanLastResult');
@@ -4581,7 +4588,7 @@ function showScanLastResult(result){
   const icon = result.ok
     ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
     : '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-  el.innerHTML = `${icon}<span>${escapeHtml(result.msg)}${result.count!==undefined?` — ${result.count} total`:''}</span>`;
+  el.innerHTML = `${icon}<span>${escapeHtml(result.msg)}${result.count!==undefined?` &middot; ${result.count} scan${result.count!==1?'s':''}`:''}</span>`;
 }
 function flashScanFrame(ok){
   const frame = document.querySelector('#modalScan .scan-frame');
@@ -6579,9 +6586,10 @@ function addScannedSupply(code){
   /* Name the multiplier. If a case code is still registered as 1 this is
      where you see it, instead of finding out from the stock count later. */
   const mult = per > 1 ? `+${per} (case code)` : '+1';
+  scanSessionCount++;
   return {ok:true,
           msg:`${c.name} ${mult} — now ${bwPicked[c.id]} ${c.unit||''}`.trim(),
-          count:Object.keys(bwPicked).length};
+          count:scanSessionCount};
 }
 /* --- assigning a code mid-scan --------------------------------------- */
 let assignPendingCode = null;
