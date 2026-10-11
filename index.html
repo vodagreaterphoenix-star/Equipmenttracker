@@ -1316,19 +1316,23 @@ details.hsec{scroll-margin-top:8px;}
       </div>
     </details>
 
-    <details class="hstep"><summary><span class="n">2</span><span class="t">Check it says "Synced"</span></summary>
+    <details class="hstep"><summary><span class="n">2</span><span class="t">Didn't get the prompt, or waved it away?</span></summary>
+      <div class="hbody">The app offers this a few times and then stops. The steps above work at any point — nothing is lost by having dismissed it.</div>
+    </details>
+
+    <details class="hstep"><summary><span class="n">3</span><span class="t">Check it says "Synced"</span></summary>
       <div class="hbody">
         Top right of the blue header. <b>Synced</b> means it's talking to the shop's records. <b>Saving…</b> means it's writing a change. <b>Offline</b> means it can't reach them — check your signal, and if you're somewhere with no bars, don't make changes you can't confirm went through.
       </div>
     </details>
 
-    <details class="hstep"><summary><span class="n">3</span><span class="t">Light or dark</span></summary>
+    <details class="hstep"><summary><span class="n">4</span><span class="t">Light or dark</span></summary>
       <div class="hbody">
         The sun/moon button next to Synced switches between them. It's per-device, so your phone can be dark while the shop computer is light. Dark is easier at 6am; light is easier in the sun.
       </div>
     </details>
 
-    <details class="hstep"><summary><span class="n">4</span><span class="t">If something looks wrong or out of date</span></summary>
+    <details class="hstep"><summary><span class="n">5</span><span class="t">If something looks wrong or out of date</span></summary>
       <div class="hbody">
         <b>iPhone:</b> swipe the app closed from the app switcher and reopen it. If it's on your home screen, you may need to delete the icon and add it again.<br><br>
         <b>Android / computer:</b> pull down to refresh, or Ctrl+Shift+R on a keyboard.
@@ -2339,6 +2343,22 @@ details.hsec{scroll-margin-top:8px;}
   <div class="btn-row"><button class="btn btn-amber" onclick="confirmLogOrder()">Mark as on order</button></div>
 </div></div>
 <!-- ===== END CONSUMABLES FEATURE (MODALS) ===== -->
+
+<!-- ===== BEGIN INSTALL PROMPT ===== -->
+<div class="overlay" id="modalInstall"><div class="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <div><div class="sheet-title">Put this on your home screen</div><div class="sheet-sub">Opens like an app — no address bar, one tap away</div></div>
+    <button class="close-x" onclick="dismissInstall()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div id="installBody"></div>
+  <div class="btn-row" id="installActions"></div>
+  <div class="auth-foot" style="margin-top:14px;display:flex;justify-content:space-between;gap:12px;">
+    <a onclick="dismissInstall()">Not now</a>
+    <a onclick="neverAskInstall()" style="color:var(--muted);">Don't show again</a>
+  </div>
+</div></div>
+<!-- ===== END INSTALL PROMPT ===== -->
 
 <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span id="toastMsg"></span></div>
 
@@ -4862,6 +4882,105 @@ document.addEventListener('toggle', e=>{
     sheet.scrollTo({ top: target, behavior: smooth ? 'smooth' : 'auto' });
   }));
 }, true);   // capture: the toggle event doesn't bubble
+
+/* ===== BEGIN INSTALL PROMPT (JAVASCRIPT) ======================
+   Offered once per device. Chrome, Edge, Opera and Samsung Internet give
+   us a real install button through beforeinstallprompt. Safari and
+   Firefox don't, so those get the two-step instruction instead — there
+   is no API for it, and telling someone the steps beats a button that
+   does nothing.
+   ============================================================= */
+/* Asked at most ASK_LIMIT times, and only once per session. Someone
+   opening the link mid-job will wave anything away, so "Not now" means
+   next time — but nagging forever is worse than not asking, hence the
+   cap and the explicit opt-out. */
+const INSTALL_COUNT = 'voda-install-asks';
+const INSTALL_NEVER = 'voda-install-never';
+const ASK_LIMIT = 3;
+let deferredInstall = null;
+let askedThisSession = false;
+
+function isStandalone(){
+  return window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone === true;      // iOS home-screen apps
+}
+function installAsks(){
+  try{ return parseInt(localStorage.getItem(INSTALL_COUNT),10) || 0; }catch(e){ return 0; }
+}
+function installAlreadyOffered(){
+  try{ if(localStorage.getItem(INSTALL_NEVER) === '1') return true; }catch(e){}
+  return askedThisSession || installAsks() >= ASK_LIMIT;
+}
+function markInstallOffered(){
+  askedThisSession = true;
+  try{ localStorage.setItem(INSTALL_COUNT, String(installAsks() + 1)); }catch(e){}
+}
+function neverAskInstall(){
+  try{ localStorage.setItem(INSTALL_NEVER, '1'); }catch(e){}
+  closeModal('modalInstall');
+  showToast("Won't ask again — it's in the Help guide if you change your mind");
+}
+/* "Not now" only counts this showing; it'll offer again next time. */
+function dismissInstall(){
+  markInstallOffered();
+  closeModal('modalInstall');
+}
+
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault();               // we choose when to ask
+  deferredInstall = e;
+  maybeOfferInstall();
+});
+window.addEventListener('appinstalled', ()=>{ markInstallOffered(); deferredInstall = null; });
+
+function installInstructions(){
+  const ua = navigator.userAgent;
+  const iOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const firefox = /Firefox|FxiOS/.test(ua);
+  const step = (n,t,d)=>`<div class="help-step"><div class="n">${n}</div><div><div class="t">${t}</div><div class="d">${d}</div></div></div>`;
+
+  if(iOS){
+    return step(1,'Tap the Share button','The square with an arrow coming out of it — at the bottom in Safari, at the top in Chrome.')
+         + step(2,'Choose "Add to Home Screen"','Scroll down the list to find it, then tap Add.')
+         + `<div class="hint">On an iPhone this has to be done from the browser's own Share menu — there's no button we can give you.</div>`;
+  }
+  if(firefox){
+    return step(1,'Open the menu','The three lines or three dots in the toolbar.')
+         + step(2,'Choose "Install" or "Add to Home screen"','Firefox names it differently depending on the version.');
+  }
+  return step(1,'Open the browser menu','The three dots, usually top right.')
+       + step(2,'Choose "Install app" or "Add to Home screen"','It appears near the top of the menu.');
+}
+
+function maybeOfferInstall(){
+  if(isStandalone() || installAlreadyOffered()) return;
+  markInstallOffered();          // counted once it's actually shown
+  const body = document.getElementById('installBody');
+  const acts = document.getElementById('installActions');
+  if(!body || !acts) return;
+
+  if(deferredInstall){
+    body.innerHTML = `<div class="help-p">One tap and it lives on your home screen with the Voda icon, opening straight to the tracker.</div>`;
+    acts.innerHTML = `<button class="btn btn-cyan" onclick="runInstall()">Install</button>`;
+  } else {
+    body.innerHTML = installInstructions();
+    acts.innerHTML = '';
+  }
+  openModal('modalInstall');
+}
+
+async function runInstall(){
+  if(!deferredInstall){ dismissInstall(); return; }
+  closeModal('modalInstall');
+  deferredInstall.prompt();
+  try{ await deferredInstall.userChoice; }catch(e){}
+  deferredInstall = null;
+}
+
+/* Browsers that support beforeinstallprompt fire it within a second or
+   two of load. Wait for it, then offer whichever we can. */
+setTimeout(()=>{ if(!isStandalone() && !installAlreadyOffered()) maybeOfferInstall(); }, 2500);
+/* ===== END INSTALL PROMPT (JAVASCRIPT) ===== */
 
 /* ============ INIT ============ */
 initTheme();
