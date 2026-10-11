@@ -2134,7 +2134,7 @@ details.hsec{scroll-margin-top:8px;}
     <select id="cmSupply" onchange="renderCodeManager()"></select>
   </div>
   <div class="field">
-    <label>Code</label>
+    <label>Step 1 — the code</label>
     <div style="display:flex;gap:8px;">
       <input id="cmCode" style="flex:1;" placeholder="Scan or type a UPC / QR" autocapitalize="characters" spellcheck="false"
              onkeydown="if(event.key==='Enter'){event.preventDefault();cmAddCode();}">
@@ -2142,10 +2142,10 @@ details.hsec{scroll-margin-top:8px;}
     </div>
   </div>
   <div class="field">
-    <label>One scan of this code = how many?</label>
+    <label>Step 2 — one scan of this code = how many?</label>
     <div style="display:flex;gap:8px;">
       <input id="cmPer" type="number" min="1" step="1" value="1" style="flex:1;">
-      <button class="btn btn-cyan" style="width:auto;padding:0 18px;" onclick="cmAddCode()">Add code</button>
+      <button class="btn btn-cyan" style="width:auto;padding:0 18px;" onclick="cmAddCode()">Step 3 — Add code</button>
     </div>
     <div class="hint">Scanning the barcode on a <b>case of 50 zippers</b> should add 50, not 1 — put 50 here. A single roll of plastic stays 1. Each code has its own number, so the case barcode and the single-item barcode can both live on the same supply.</div>
   </div>
@@ -2154,7 +2154,7 @@ details.hsec{scroll-margin-top:8px;}
       <input type="checkbox" id="cmRecvOnly" style="width:18px;height:18px;flex-shrink:0;">
       Receiving only
     </label>
-    <div class="hint">Tick this for an outer-case barcode. It'll work on a delivery, but Send out and Bring back will refuse it and tell the tech to scan a single one instead.</div>
+    <div class="hint" id="cmRecvHint">Tick this for an outer-case barcode. It'll work on a delivery, but Send out and Bring back will refuse it and tell the tech to scan a single one instead.</div>
   </div>
 
   <div class="section-title">Codes on this supply</div>
@@ -4617,8 +4617,15 @@ function lookupCode(code){
      and they live in a different list from equipment — so these two modes
      are handled before the equipment lookup. */
   if(scanMode === 'supplyCode'){
+    /* Fill the box and stop. It used to attach the code straight away,
+       which meant it was saved with whatever quantity happened to be in
+       the field — and since the quantity sits BELOW the Scan button, that
+       was almost always 1. Now you scan, set the quantity, then Add. */
     closeScan();
-    cmAddCode(clean);              // attaches it to the supply chosen above
+    const box = document.getElementById('cmCode');
+    if(box) box.value = normCode(clean);
+    renderCodeManager();
+    showToast(`Read ${normCode(clean)} — set the quantity, then tap Add code`);
     return {ok:true, msg:clean};
   }
   if(scanMode === 'assetId'){
@@ -6019,6 +6026,21 @@ function cmPick(id){
 }
 
 /* Attaches a code to the supply chosen above. */
+/* A code worth more than one is almost always an outer case, and a case
+   code should only work on a delivery — a tech loading one box onto a
+   truck must not move twelve. Ticked automatically, and still unticked
+   by hand if a supply genuinely ships in multiples every time. */
+document.addEventListener('input', e=>{
+  if(e.target.id !== 'cmPer') return;
+  const per = parseInt(e.target.value,10) || 1;
+  const box = document.getElementById('cmRecvOnly');
+  if(box && per > 1 && !box.dataset.touched) box.checked = true;
+  if(box && per <= 1 && !box.dataset.touched) box.checked = false;
+});
+document.addEventListener('change', e=>{
+  if(e.target.id === 'cmRecvOnly') e.target.dataset.touched = '1';
+});
+
 async function cmAddCode(code){
   const box = document.getElementById('cmCode');
   const raw = (typeof code === 'string' ? code : box.value).trim().toUpperCase();
@@ -6050,6 +6072,12 @@ async function cmAddCode(code){
   if(!saved) return;
   showToast(per > 1 ? `${raw} adds ${per} ${c.unit||''} of ${c.name}`.trim()
                     : `${raw} now scans to ${c.name}`);
+  // Setup done — drop this sheet and land on the worksheet set to receive,
+  // which is what you came here to do next.
+  const recvBox = document.getElementById('cmRecvOnly');
+  if(recvBox) delete recvBox.dataset.touched;
+  closeModal('modalCodes');
+  setTimeout(()=>{ openSupplies(); bwSetMode('recv'); }, SHEET_CLOSE_MS + 20);
 }
 
 async function cmRemoveCode(id, code){
