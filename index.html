@@ -2721,6 +2721,28 @@ document.addEventListener('input', e=>{
   if(e.target.id==='setShopLat' || e.target.id==='setShopLon') refreshVerifyLinks();
 });
 
+/* Settings save that reports success, so the button can confirm or
+   explain rather than appearing to do nothing. */
+async function saveSettingsChecked(){
+  if(!backendSupportsSettings){
+    showToast("Not saved — your Apps Script backend needs updating");
+    return false;
+  }
+  setSyncing(true);
+  try{
+    const rows = Object.keys(appSettings).map(key=>({ key, value: appSettings[key] }));
+    const r = await apiPost('saveSettings', rows);
+    if(r && r.error){ setSyncing(false, true); showToast('Not saved — ' + r.error); return false; }
+    setSyncing(false);
+    return true;
+  }catch(e){
+    console.error('save settings failed', e);
+    setSyncing(false, true);
+    showToast("Not saved — check your connection and try again");
+    return false;
+  }
+}
+
 async function saveSettings(){
   if(!backendSupportsSettings){
     showToast("Saved on this device only \u2014 update your Apps Script backend to sync it");
@@ -5492,6 +5514,34 @@ async function applyConsumableOps(ops){
   }
 }
 
+/* Same as saveConsumables, but tells the caller whether it worked so the
+   button can say so. The silent version stays for places where a failure
+   is already obvious. */
+async function saveConsumablesChecked(){
+  if(!backendSupportsConsumables){
+    showToast("Not saved — your Apps Script backend needs updating");
+    return false;
+  }
+  setSyncing(true);
+  try{
+    const r = await apiPost('saveConsumables', consumables);
+    if(r && r.error){
+      setSyncing(false, true);
+      showToast(/unknown action/i.test(r.error)
+        ? 'Not saved — deploy a new version in Apps Script'
+        : 'Not saved — ' + r.error);
+      return false;
+    }
+    setSyncing(false);
+    return true;
+  }catch(e){
+    console.error('save consumables failed', e);
+    setSyncing(false, true);
+    showToast("Not saved — check your connection and try again");
+    return false;
+  }
+}
+
 async function saveConsumables(){
   if(!backendSupportsConsumables){
     showToast("Supplies are saved on this device only — update your Apps Script backend");
@@ -5562,9 +5612,9 @@ function openSupplies(){
 async function saveSupplySettings(){
   appSettings.conDefaultMin = String(Math.max(0, parseInt(document.getElementById('supDefaultMin').value,10) || 0));
   appSettings.conWarnBuffer = String(Math.max(0, parseInt(document.getElementById('supWarnBuffer').value,10) || 0));
-  await saveSettings();
+  const ok = await saveSettingsChecked();
   renderConsumables();
-  showToast('Reorder levels saved');
+  if(ok) showToast('Reorder levels saved');
 }
 function printSupplies(){
   document.getElementById('supPrintArea').innerHTML = consumablesPrintHtml();
@@ -5926,8 +5976,8 @@ async function cmAddCode(code){
   const raw = (typeof code === 'string' ? code : box.value).trim().toUpperCase();
   const id  = document.getElementById('cmSupply').value;
   const c   = consumables.find(x=>x.id===id);
-  if(!c){ showToast('Pick a supply first'); return; }
-  if(!raw){ showToast('Scan or type a code first'); return; }
+  if(!c){ showToast('Pick a supply from the list first'); return; }
+  if(!raw){ showToast('Scan a box or type the code in first'); return; }
   // A code can only point at one supply, or a scan is ambiguous.
   const clash = consumables.find(x=>supplyCodes(x).some(sc=>codeKey(sc)===codeKey(raw)));
   if(clash){
@@ -5946,7 +5996,10 @@ async function cmAddCode(code){
   document.getElementById('cmPer').value = 1;
   document.getElementById('cmRecvOnly').checked = false;
   renderCodeManager();
-  await saveConsumables();
+  // Show the chip first so the tap clearly did something, then report
+  // whether it actually reached the Sheet.
+  const saved = await saveConsumablesChecked();
+  if(!saved) return;
   showToast(per > 1 ? `${raw} adds ${per} ${c.unit||''} of ${c.name}`.trim()
                     : `${raw} now scans to ${c.name}`);
 }
