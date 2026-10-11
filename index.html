@@ -4473,9 +4473,11 @@ async function openScan(mode){
   // In supply mode a scan adds stock outright, so "Look up" would be the
   // wrong word for the manual fallback.
   const isSupply = (scanMode === 'supplies');
-  document.getElementById('scanManualBtn').textContent = isSupply ? 'Add' : 'Look up';
+  document.getElementById('scanManualBtn').textContent = isSupply ? 'Add this code' : 'Look up';
   document.getElementById('manualCode').placeholder = isSupply ? 'e.g. 0123456789012' : 'e.g. DH-005';
-  document.getElementById('scanManualDiv').textContent = isSupply ? 'or type the code' : 'or enter code manually';
+  document.getElementById('scanManualDiv').textContent = isSupply
+    ? "can't scan it? type the number printed under the barcode"
+    : 'or enter code manually';
 
   if(typeof Html5Qrcode === 'undefined'){
     statusTxt.textContent = 'Camera scanner failed to load — use the code field below';
@@ -6554,8 +6556,11 @@ function addScannedSupply(code){
   const per = supplyPer(c, code);
   bwPicked[c.id] = (Number(bwPicked[c.id])||0) + per;
   bwRender();
+  /* Name the multiplier. If a case code is still registered as 1 this is
+     where you see it, instead of finding out from the stock count later. */
+  const mult = per > 1 ? `+${per} (case code)` : '+1';
   return {ok:true,
-          msg:`${c.name} — ${bwPicked[c.id]} ${c.unit||''}`.trim(),
+          msg:`${c.name} ${mult} — now ${bwPicked[c.id]} ${c.unit||''}`.trim(),
           count:Object.keys(bwPicked).length};
 }
 /* --- assigning a code mid-scan --------------------------------------- */
