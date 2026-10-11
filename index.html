@@ -5429,6 +5429,36 @@ function conIsLow(c){
   return Number(c.qty) <= Number(c.minQty) + conWarnBuffer();
 }
 
+/* Quantity changes go as instructions, not as a whole list — see the
+   long note in Code.gs. The backend applies them under a lock and hands
+   back the authoritative list, which we adopt, so this device is in step
+   with everyone else the moment the call returns.
+
+   Structural changes — adding a supply, renaming one, editing barcodes —
+   still use saveConsumables() below. Those are rare, usually done by one
+   person in Settings, and there's no sensible delta for "renamed". */
+async function applyConsumableOps(ops){
+  if(!ops.length) return true;
+  if(!backendSupportsConsumables){
+    showToast("Supplies are saved on this device only — update your Apps Script backend");
+    return false;
+  }
+  setSyncing(true);
+  try{
+    const r = await apiPost('applyConsumables', ops);
+    if(r && r.error){ setSyncing(false, true); showToast(r.error); return false; }
+    if(r && Array.isArray(r.consumables)) consumables = r.consumables;
+    setSyncing(false);
+    renderConsumables();
+    return true;
+  }catch(e){
+    console.error('apply consumables failed', e);
+    setSyncing(false, true);
+    showToast("Couldn't save that — check your connection and try again");
+    return false;
+  }
+}
+
 async function saveConsumables(){
   if(!backendSupportsConsumables){
     showToast("Supplies are saved on this device only — update your Apps Script backend");
@@ -5632,12 +5662,13 @@ function renderConsumables(){
 async function adjustConsumable(id, delta){
   const c = consumables.find(x=>x.id===id);
   if(!c) return;
-  const next = Math.max(0, (Number(c.qty)||0) + delta);
-  if(next === Number(c.qty)) return;
+  if(delta < 0 && (Number(c.qty)||0) <= 0) return;
   const wasLow = conIsLow(c);
-  c.qty = next;
+  // Optimistic: move the number now so the tap feels instant, then let
+  // the backend's answer be the truth.
+  c.qty = Math.max(0, (Number(c.qty)||0) + delta);
   renderConsumables();
-  await saveConsumables();
+  await applyConsumableOps([{ id: c.id, delta }]);
   if(!wasLow && conIsLow(c) && !(Number(c.orderedQty)>0)){
     showToast(`${c.name} is down to ${c.qty} ${c.unit||''} — time to reorder`);
   }
@@ -6009,11 +6040,8 @@ async function confirmLogOrder(){
   if(!c) return;
   const n = parseInt(document.getElementById('conOrderQty').value,10);
   if(!n || n<1){ showToast('How many are on order?'); return; }
-  c.orderedQty = n;
-  c.orderedOn = new Date().toISOString();
   closeModal('modalConOrder');
-  renderConsumables();
-  await saveConsumables();
+  await applyConsumableOps([{ id: c.id, setOrdered: n }]);
   showToast(`${n} ${c.unit||''} of ${c.name} marked on order`);
   orderingConsumableId = null;
 }
@@ -6022,22 +6050,15 @@ async function receiveOrder(id){
   if(!c) return;
   const n = Number(c.orderedQty)||0;
   if(n<1) return;
-  c.qty = (Number(c.qty)||0) + n;          // stock goes up by what arrived
-  c.orderedQty = 0;                        // nothing outstanding now
-  delete c.orderedOn;
-  c.lastReceived = new Date().toISOString();
-  renderConsumables();                     // status re-derives itself
-  await saveConsumables();
+  // One instruction: add what arrived and clear the outstanding order.
+  await applyConsumableOps([{ id: c.id, delta: n, setOrdered: 0 }]);
   showToast(`${n} ${c.unit||''} received — ${c.name} now ${c.qty}`);
 }
 async function cancelOrder(id){
   const c = consumables.find(x=>x.id===id);
   if(!c) return;
   if(!confirm(`Cancel the order for ${c.name}? Your shop count doesn't change.`)) return;
-  c.orderedQty = 0;
-  delete c.orderedOn;
-  renderConsumables();
-  await saveConsumables();
+  await applyConsumableOps([{ id: c.id, setOrdered: 0 }]);
   showToast('Order cancelled');
 }
 
@@ -6244,14 +6265,19 @@ async function bwApply(){
   if(!ids.length){ showToast('Enter a quantity first'); return; }
   const van = document.getElementById('bwVan').value || '';
   let moved = 0;
+  const ops = [];
   ids.forEach(id=>{
     const c = consumables.find(x=>x.id===id);
     if(!c) return;
     const n = Number(bwPicked[id])||0;
     const res = bwResulting(c, n);
     if(res < 0) return;                 // guarded in the UI too, belt and braces
-    c.qty = res;
-    if(bwMode==='recv'){ c.orderedQty = 0; delete c.orderedOn; c.lastReceived = new Date().toISOString(); }
+    // Send the movement, not the resulting number. Two techs applying
+    // worksheets seconds apart both land, instead of the second one
+    // overwriting the first.
+    const op = { id: c.id, delta: bwMode==='out' ? -n : n };
+    if(bwMode==='recv') op.setOrdered = 0;
+    ops.push(op);
     moved++;
     // Logged against the equipment activity feed so there's a record of
     // where supplies went, same as equipment moves.
@@ -6265,8 +6291,8 @@ async function bwApply(){
   });
   bwPicked = {};
   await saveActivity();
-  await saveConsumables();
-  renderConsumables();
+  const ok = await applyConsumableOps(ops);
+  if(!ok){ bwRender(); return; }      // nothing applied; the toast said why
   bwRender();
   const verb = bwMode==='recv' ? 'received' : bwMode==='out' ? `sent to ${van}` : `brought back from ${van}`;
   showToast(`${moved} item${moved!==1?'s':''} ${verb}`);
@@ -6379,7 +6405,7 @@ async function confirmAssignCode(){
   if(dupe){ showToast(`That code is already on ${dupe.name}`); return; }
   const per = Math.max(1, parseInt(document.getElementById('asPer').value,10) || 1);
   c.barcodes = [...supplyCodeObjs(c), { code: assignPendingCode, per }];
-  delete c.barcode;
+  delete c.barcode;   // a barcode is structure, not stock — whole-list save is fine
   // Count this scan straight away, so the tech doesn't have to scan twice.
   bwPicked[c.id] = (Number(bwPicked[c.id])||0) + per;
   const code = assignPendingCode;
