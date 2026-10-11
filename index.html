@@ -863,7 +863,12 @@ body.modal-open #mapCanvas{ visibility:hidden; }
 .bw-tot.down{color:var(--amber);}
 .bw-tot.bad{color:var(--red);}
 .bw-dash{color:var(--muted);}
-.bw-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--line);margin-top:12px;padding-top:12px;}
+.bw-foot{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:var(--blue-bg);border:1px solid var(--blue);border-radius:var(--radius);
+  padding:10px 12px;margin-bottom:10px;
+}
+.bw-foot .bw-count{color:var(--blue);font-weight:700;}
 .bw-count{font-size:13.5px;color:var(--muted);}
 /* Barcode chips on the supply form */
 .code-list{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px;}
@@ -2213,6 +2218,10 @@ details.hsec{scroll-margin-top:8px;}
       Assign a code
     </button>
   </div>
+  <div class="bw-foot" id="bwFoot" style="display:none;">
+    <span class="bw-count" id="bwCount">Nothing selected</span>
+    <button class="btn btn-cyan" style="width:auto;padding:0 18px;" id="bwApply" onclick="bwApply()">Apply</button>
+  </div>
   <input id="bwSearch" placeholder="Filter the list…" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-size:13px;margin-bottom:10px;" oninput="bwRender()">
   <div class="bw-wrap">
     <div class="bw-scroll">
@@ -2228,10 +2237,7 @@ details.hsec{scroll-margin-top:8px;}
       </table>
     </div>
   </div>
-  <div class="bw-foot">
-    <span class="bw-count" id="bwCount">Nothing selected</span>
-    <button class="btn btn-cyan" style="width:auto;padding:0 18px;" id="bwApply" onclick="bwApply()">Apply</button>
-  </div>
+
   <!-- ===== END BATCH WORKSHEET (HTML) ===== -->
 
   <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="toggleStockList()">
@@ -6429,12 +6435,17 @@ function bwQty(id, val){
 
 function bwUpdateFooter(){
   const ids = Object.keys(bwPicked);
+  /* The summary and submit sit above the list, and only once something is
+     selected — an empty bar between the scan buttons and the filter box
+     is just noise. */
+  const foot = document.getElementById('bwFoot');
+  if(foot) foot.style.display = ids.length ? 'flex' : 'none';
   const units = ids.reduce((t,id)=>t + (Number(bwPicked[id])||0), 0);
   const overdrawn = ids.filter(id=>{
     const c = consumables.find(x=>x.id===id);
     return c && bwResulting(c, Number(bwPicked[id])||0) < 0;
   });
-  const label = { recv:'Receive', out:'Send', in:'Bring back' }[bwMode];
+  const label = { recv:'Submit received', out:'Send out', in:'Bring back' }[bwMode];
   const count = document.getElementById('bwCount');
   const btn   = document.getElementById('bwApply');
   if(overdrawn.length){
@@ -6447,7 +6458,7 @@ function bwUpdateFooter(){
     count.textContent = `${ids.length} item${ids.length!==1?'s':''} · ${units} unit${units!==1?'s':''}`;
     btn.disabled = false;
   }
-  btn.textContent = ids.length ? `${label} ${ids.length}` : label;
+  btn.textContent = label;   // the count is already shown beside it
 }
 
 async function bwApply(){
