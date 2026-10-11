@@ -1808,6 +1808,7 @@ details.hsec{scroll-margin-top:8px;}
     <input id="manualCode" placeholder="e.g. DH-005" style="text-transform:uppercase;" onkeydown="if(event.key==='Enter')manualLookup()">
   </div>
   <div class="btn-row"><button class="btn btn-primary" id="scanManualBtn" onclick="manualLookup()">Look up</button></div>
+  <div class="btn-row" id="scanDoneRow" style="display:none;"><button class="btn btn-cyan" onclick="closeScan()">Done — back to the list</button></div>
 </div></div>
 
 <!-- Add item -->
@@ -4462,6 +4463,10 @@ async function openScan(mode){
     bulkMove:   ['Scan to move',         "Scan each item you're moving"]
   };
   const t = titles[scanMode] || ['Scan equipment', "Point the camera at the asset's QR/barcode label"];
+  // Continuous modes keep the camera running between scans, so they need
+  // an obvious way out that isn't the small X in the corner.
+  document.getElementById('scanDoneRow').style.display =
+    ['supplies','clientReturn','jobKit','bulkMove'].includes(scanMode) ? 'flex' : 'none';
   document.getElementById('scanTitle').textContent = t[0];
   document.getElementById('scanSub').textContent   = t[1];
 
@@ -4602,9 +4607,12 @@ function manualLookup(){
   document.getElementById('manualCode').value = '';
   const isContinuous = ['clientReturn','jobKit','bulkMove','supplies'].includes(scanMode);
   if(isContinuous){
-    const result = lookupCode(code); // camera keeps running — this is just an alternate way to add one item
+    const result = lookupCode(code);
     showScanLastResult(result);
     playBeep(result.ok);
+    // Typing a code is a deliberate one-off, so close the camera and show
+    // the list it was added to rather than sitting on a viewfinder.
+    if(result.ok) setTimeout(closeScan, 350);
   } else {
     closeScan();
     lookupCode(code);
@@ -6467,6 +6475,9 @@ async function bwApply(){
   bwPicked = {};
   await saveActivity();
   bwRender();
+  // The movement is done — drop the sheet. Reopening it shows the new
+  // counts, which is the confirmation that it worked.
+  closeModal('modalSupplies');
   const verb = bwMode==='recv' ? 'received' : bwMode==='out' ? `sent to ${van}` : `brought back from ${van}`;
   showToast(`${moved} item${moved!==1?'s':''} ${verb}`);
 }
