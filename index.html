@@ -951,9 +951,11 @@ details.hsec{scroll-margin-top:8px;}
    which frees the width for a bigger logo. On anything wider there's
    room for one row, so it stays as it was. */
 .header-tools{display:flex;align-items:center;gap:8px;}
+/* The icon pair is a flex row at every width. Without this it's a plain
+   block on desktop and the two buttons stack on top of each other. */
+.header-tools .tool-row{display:flex;align-items:center;gap:8px;}
 @media (max-width:520px){
   .header-tools{flex-direction:column;align-items:flex-end;gap:7px;}
-  .header-tools .tool-row{display:flex;gap:8px;}
   .brand-mark{width:46px;height:46px;border-radius:12px;padding:6px;}
   .brand-name{font-size:16px;}
   .brand-sub{font-size:11.5px;}
