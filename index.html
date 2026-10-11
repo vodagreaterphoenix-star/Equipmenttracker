@@ -1794,7 +1794,7 @@ details.hsec{scroll-margin-top:8px;}
 <div class="overlay" id="modalScan"><div class="sheet">
   <div class="sheet-handle"></div>
   <div class="sheet-head">
-    <div><div class="sheet-title">Scan equipment</div><div class="sheet-sub">Point the camera at the asset's QR/barcode label</div></div>
+    <div><div class="sheet-title" id="scanTitle">Scan equipment</div><div class="sheet-sub" id="scanSub">Point the camera at the asset's QR/barcode label</div></div>
     <button class="close-x" onclick="closeScan()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
   <div class="scan-wrap" id="scanWrap">
@@ -4450,6 +4450,21 @@ async function openScan(mode){
     jobKit: 'Scan items one after another — they\'ll add to this job kit as you go',
     bulkMove: 'Scan items one after another — they\'ll add to the move list as you go',
   }[scanMode] || 'Looking for a code…';
+  /* The sheet used to say "Scan equipment" whatever you were doing, which
+     is wrong when you're registering a barcode for a box of gloves. */
+  const titles = {
+    supplies:   ['Scan supplies',        "Each scan adds that item to the worksheet"],
+    supplyCode: ['Register a barcode',   "Point at the box — this code gets attached to the supply you picked"],
+    assignCode: ['Read a barcode',       "Point at the box, then say what it is"],
+    assetId:    ['Scan the asset label', "This becomes the equipment's ID"],
+    clientReturn:['Scan returns',        "Scan each item coming back from this job"],
+    jobKit:     ['Scan for this job',    "Scan each item going out"],
+    bulkMove:   ['Scan to move',         "Scan each item you're moving"]
+  };
+  const t = titles[scanMode] || ['Scan equipment', "Point the camera at the asset's QR/barcode label"];
+  document.getElementById('scanTitle').textContent = t[0];
+  document.getElementById('scanSub').textContent   = t[1];
+
   // In supply mode a scan adds stock outright, so "Look up" would be the
   // wrong word for the manual fallback.
   const isSupply = (scanMode === 'supplies');
