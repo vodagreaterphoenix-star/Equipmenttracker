@@ -5471,7 +5471,15 @@ async function applyConsumableOps(ops){
   setSyncing(true);
   try{
     const r = await apiPost('applyConsumables', ops);
-    if(r && r.error){ setSyncing(false, true); showToast(r.error); return false; }
+    if(r && r.error){
+      setSyncing(false, true);
+      // The most likely cause by far: Code.gs is current in the editor but
+      // the deployment is still serving an older version.
+      showToast(/unknown action/i.test(r.error)
+        ? 'Backend is out of date — deploy a new version in Apps Script'
+        : r.error);
+      return false;
+    }
     if(r && Array.isArray(r.consumables)) consumables = r.consumables;
     setSyncing(false);
     renderConsumables();
@@ -6323,10 +6331,12 @@ async function bwApply(){
       : bwMode==='out' ? `${n} ${c.unit||''} sent to ${van}`.trim()
       :                  `${n} ${c.unit||''} brought back from ${van}`.trim());
   });
+  // Don't clear the worksheet until the save is confirmed. If it fails,
+  // everything the tech ticked is still there to retry rather than lost.
+  const ok = await applyConsumableOps(ops);
+  if(!ok){ bwRender(); return; }      // the toast said why
   bwPicked = {};
   await saveActivity();
-  const ok = await applyConsumableOps(ops);
-  if(!ok){ bwRender(); return; }      // nothing applied; the toast said why
   bwRender();
   const verb = bwMode==='recv' ? 'received' : bwMode==='out' ? `sent to ${van}` : `brought back from ${van}`;
   showToast(`${moved} item${moved!==1?'s':''} ${verb}`);
