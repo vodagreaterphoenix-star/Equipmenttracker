@@ -2146,6 +2146,13 @@ details.hsec{scroll-margin-top:8px;}
     </div>
     <div class="hint">Scanning the barcode on a <b>case of 50 zippers</b> should add 50, not 1 — put 50 here. A single roll of plastic stays 1. Each code has its own number, so the case barcode and the single-item barcode can both live on the same supply.</div>
   </div>
+  <div class="field">
+    <label style="display:flex;align-items:center;gap:9px;text-transform:none;letter-spacing:0;font-weight:500;font-size:13.5px;color:var(--ink);">
+      <input type="checkbox" id="cmRecvOnly" style="width:18px;height:18px;flex-shrink:0;">
+      Receiving only
+    </label>
+    <div class="hint">Tick this for an outer-case barcode. It'll work on a delivery, but Send out and Bring back will refuse it and tell the tech to scan a single one instead.</div>
+  </div>
 
   <div class="section-title">Codes on this supply</div>
   <div id="cmCurrent" class="code-list"></div>
@@ -5799,7 +5806,9 @@ function supplyCodeObjs(c){
   if(Array.isArray(c.barcodes)){
     return c.barcodes.map(b=> typeof b === 'string'
       ? { code: b.toUpperCase(), per: 1 }
-      : { code: String(b.code||'').toUpperCase(), per: Math.max(1, Number(b.per)||1) })
+      : { code: String(b.code||'').toUpperCase(),
+          per: Math.max(1, Number(b.per)||1),
+          recvOnly: !!b.recvOnly })
       .filter(b=>b.code);
   }
   return c.barcode ? [{ code: String(c.barcode).toUpperCase(), per: 1 }] : [];
@@ -5807,9 +5816,12 @@ function supplyCodeObjs(c){
 /* Just the code strings, for matching. */
 function supplyCodes(c){ return supplyCodeObjs(c).map(b=>b.code); }
 /* How many units one scan of this code adds. */
-function supplyPer(c, code){
+function supplyCodeObj(c, code){
   const key = codeKey(code);
-  const hit = supplyCodeObjs(c).find(b=>codeKey(b.code) === key);
+  return supplyCodeObjs(c).find(b=>codeKey(b.code) === key) || null;
+}
+function supplyPer(c, code){
+  const hit = supplyCodeObj(c, code);
   return hit ? hit.per : 1;
 }
 
@@ -5835,18 +5847,20 @@ function refreshCodeManager(){
 function openCodeManager(){
   document.getElementById('cmCode').value = '';
   document.getElementById('cmPer').value = 1;
+  document.getElementById('cmRecvOnly').checked = false;
   refreshCodeManager();
   openModal('modalCodes');
 }
 
 function cmChip(itemId, b){
   const per = b.per > 1 ? ` <span style="font-weight:800;color:var(--blue);">&times;${b.per}</span>` : '';
+  const recv = b.recvOnly ? ` <span style="font-weight:700;color:var(--amber);" title="Receiving only">case</span>` : '';
   // A short all-digit code is almost certainly half a barcode. Marked in
   // red so it's obvious which ones to delete and rescan.
   const warn = looksPartial(b.code)
     ? ` <span style="color:var(--red);font-weight:800;" title="Looks like a partial scan">!</span>` : '';
   const style = looksPartial(b.code) ? ' style="border-color:var(--red);"' : '';
-  return `<span class="code-chip"${style}>${escapeHtml(b.code)}${per}${warn}
+  return `<span class="code-chip"${style}>${escapeHtml(b.code)}${per}${recv}${warn}
     <button onclick="cmRemoveCode('${itemId}','${escapeHtml(b.code)}')" title="Remove" aria-label="Remove ${escapeHtml(b.code)}">&times;</button></span>`;
 }
 
@@ -5917,10 +5931,12 @@ async function cmAddCode(code){
     return;
   }
   const per = Math.max(1, parseInt(document.getElementById('cmPer').value,10) || 1);
-  c.barcodes = [...supplyCodeObjs(c), { code: raw, per }];
+  const recvOnly = !!document.getElementById('cmRecvOnly').checked;
+  c.barcodes = [...supplyCodeObjs(c), { code: raw, per, recvOnly }];
   delete c.barcode;                       // upgrade the old single-code field
   box.value = '';
   document.getElementById('cmPer').value = 1;
+  document.getElementById('cmRecvOnly').checked = false;
   renderCodeManager();
   await saveConsumables();
   showToast(per > 1 ? `${raw} adds ${per} ${c.unit||''} of ${c.name}`.trim()
@@ -6375,6 +6391,13 @@ function addScannedSupply(code){
     closeScan();
     openAssignCode(code);
     return {ok:false, msg:`${normCode(code)} isn't assigned yet`};
+  }
+  const hit = supplyCodeObj(c, code);
+  // A case barcode is only meaningful on a delivery. A tech loading one
+  // box onto a truck shouldn't scan the outer carton and move twelve.
+  if(hit && hit.recvOnly && bwMode !== 'recv'){
+    return {ok:false,
+            msg:`${c.name}: that's the case barcode — scan a single ${c.unit||'item'} instead`};
   }
   // How many units this particular barcode represents — one roll, or a
   // case of fifty. Scanning the same code twice adds the pack twice.
