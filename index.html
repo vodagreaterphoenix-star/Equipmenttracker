@@ -714,6 +714,12 @@ body.modal-open #mapCanvas{ visibility:hidden; }
   animation:pinPulse 1.6s ease-in-out infinite;
 }
 @keyframes pinPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.12);}}
+/* Tools-only site: violet, so a ladder left on site doesn't look like a
+   job with drying equipment running. */
+.map-pin.is-tools{
+  background:#A78BFA;color:#1F1335;
+  box-shadow:0 0 0 2px rgba(167,139,250,.35), 0 0 12px rgba(167,139,250,.7);
+}
 .map-pin.is-shop{
   background:#00E5FF;color:#04202A;font-size:14px;
   box-shadow:0 0 0 3px rgba(0,229,255,.3), 0 0 18px rgba(0,229,255,.9);
@@ -1220,7 +1226,7 @@ details.hsec{scroll-margin-top:8px;}
     <div class="map-unplotted" id="mapNearest"></div>
     <div id="mapWhere"></div>
     <div class="map-unplotted" id="mapUnplotted"></div>
-    <div class="hint">Tap a pin for the equipment list and navigation. Pins show unit counts — red means something there is overdue, teal is the shop.</div>
+    <div class="hint">Tap a pin for what's there and directions. Pin colours: amber a job with equipment, <b>violet a job with only tools</b>, teal the shop, red something overdue.</div>
   </div>
   <!-- ===== END MAP FEATURE (HTML) ===== -->
 
@@ -1525,26 +1531,34 @@ details.hsec{scroll-margin-top:8px;}
     <div class="hsec-body">
 
     <details class="hstep"><summary><span class="n">1</span><span class="t">Reading the pins</span></summary>
-      <div class="hbody">Each pin carries the number of units there. Amber is a job site, cyan is the shop, red and pulsing means something there is overdue. Tap one for the equipment list, the address, and Apple / Google / Waze buttons for directions.</div>
+      <div class="hbody">Each pin carries the number of things there.<br><br>
+        <b>Amber</b> — a job with drying equipment on it.<br>
+        <b>Violet</b> — a job with <i>only</i> tools: a ladder, poles, a buffer. Nothing running, but something to collect.<br>
+        <b>Teal</b> — the shop.<br>
+        <b>Red, pulsing</b> — something there is overdue.<br><br>
+        Tap a pin for what's there, the address, and Apple / Google / Waze directions.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">2</span><span class="t">How tools get onto the map</span></summary>
+      <div class="hbody">Send them from Consumables → <b>Send out</b>, choosing the job rather than a truck. The app works out what's still there from what was sent minus what came back, so bringing them in with <b>Bring back</b> clears the pin.<br><br>Tools aren't numbered like equipment, so the map shows how many, not which ones.</div>
     </details>
 
-    <details class="hstep"><summary><span class="n">2</span><span class="t">Moving the map on a phone</span></summary>
+    <details class="hstep"><summary><span class="n">3</span><span class="t">Moving the map on a phone</span></summary>
       <div class="hbody">Use <b>two fingers</b> to pan and pinch. One finger scrolls the page, so the map doesn't trap your thumb while you're trying to get past it. On a computer, drag with the mouse and zoom with the wheel.</div>
     </details>
 
-    <details class="hstep"><summary><span class="n">3</span><span class="t">Finding what's nearest</span></summary>
+    <details class="hstep"><summary><span class="n">4</span><span class="t">Finding what's nearest</span></summary>
       <div class="hbody">Tap <b>My location</b> and allow the prompt. Job sites are then listed nearest first with distances — useful when you need two more air movers and want to know whether the closest are on a finishing job or back at the shop.<br><br>Location needs permission, same as the camera. Denied it by accident? Same place in your browser settings.</div>
     </details>
 
-    <details class="hstep"><summary><span class="n">4</span><span class="t">Filtering by type</span></summary>
+    <details class="hstep"><summary><span class="n">5</span><span class="t">Filtering by type</span></summary>
       <div class="hbody">The chips above the map filter the pins. Tap Air Mover to see only those; tap Air Scrubber as well to see both. Tap All to clear. The counts update as you filter.</div>
     </details>
 
-    <details class="hstep"><summary><span class="n">5</span><span class="t">The list underneath</span></summary>
+    <details class="hstep"><summary><span class="n">6</span><span class="t">The list underneath</span></summary>
       <div class="hbody">Switch between <b>By location</b> — each job with its equipment grouped by type — and <b>By equipment</b> — each type and everywhere it's sitting. The first answers "what's at this job", the second answers "where are my dehus".</div>
     </details>
 
-    <details class="hstep"><summary><span class="n">6</span><span class="t">If a job isn't on the map</span></summary>
+    <details class="hstep"><summary><span class="n">7</span><span class="t">If a job isn't on the map</span></summary>
       <div class="hbody">It has no address saved, or the address couldn't be found. Either way it's listed under the map rather than silently left off. Fix it by opening the job and tapping the address line.</div>
     </details>
   </div></details>
@@ -5096,6 +5110,23 @@ function renderMapChips(){
     }).join('');
 }
 
+/* Tools sent to a job and not yet brought back. Loadouts aren't
+   individually numbered like equipment, so there's no record to read a
+   status off — this works it out from the movement log: everything sent
+   to that job, minus everything brought back from it. */
+function jobToolsOut(name){
+  const net = {};
+  activityLog.forEach(a=>{
+    if(a.jobsite !== name || a.type !== 'Loadout') return;
+    const m = String(a.extra||'').match(/^(\d+)\s*(\S*)\s+(sent to|brought back from)/i);
+    if(!m) return;
+    const qty = parseInt(m[1],10) || 0;
+    const row = net[a.id] = net[a.id] || { name:a.id, unit:m[2]||'', qty:0 };
+    row.qty += /brought back/i.test(m[3]) ? -qty : qty;
+  });
+  return Object.values(net).filter(r=>r.qty > 0).sort((a,b)=>a.name.localeCompare(b.name));
+}
+
 function mapGroups(){
   const g = {};
   // The shop is always on the map, even with nothing in it. It's the base of
@@ -5111,6 +5142,20 @@ function mapGroups(){
     g[label].items.push(it);
     if(isOverdue(it)) g[label].overdue++;
   });
+
+  /* A job holding only tools still needs a pin — a ladder and two poles
+     left on site for a couple of days is exactly the thing that gets
+     forgotten. These sites are drawn in a different colour so they're
+     distinguishable at a glance from a site with drying equipment on it. */
+  getClientNames().forEach(name=>{
+    const tools = jobToolsOut(name);
+    if(!tools.length) return;
+    if(!g[name]) g[name] = { label:name, address: clientAddresses[name] || '',
+                             items: [], overdue: 0, isShop: false };
+    g[name].tools = tools;
+    g[name].toolCount = tools.reduce((n,t)=>n + t.qty, 0);
+  });
+
   return Object.values(g);
 }
 
@@ -5290,8 +5335,12 @@ async function renderMap(){
     const pt = g.isShop ? shopPoint() : geocache[mapNorm(g.address)];
     if(!pt){ unplotted.push(g); return; }
     plotted += g.items.length;
-    const cls = 'map-pin' + (g.overdue?' has-overdue':'') + (g.isShop?' is-shop':'');
-    const face = g.items.length ? g.items.length : (g.isShop ? '&#8962;' : '0');
+    const toolsOnly = !g.items.length && g.toolCount > 0;
+    const cls = 'map-pin' + (g.overdue?' has-overdue':'') + (g.isShop?' is-shop':'')
+              + (toolsOnly?' is-tools':'');
+    const face = g.items.length ? g.items.length
+               : toolsOnly ? g.toolCount
+               : (g.isShop ? '&#8962;' : '0');
     const icon = L.divIcon({ className:'', html:`<div class="${cls}">${face}</div>`,
                              iconSize:[28,28], iconAnchor:[14,14] });
     const list = g.items.length
@@ -5313,7 +5362,12 @@ async function renderMap(){
       .bindPopup(`<div class="map-pop">
           <div class="nm">${escapeHtml(g.label)}</div>
           <div class="ad">${escapeHtml(g.address)}${dist}</div>
-          <div class="it">${list}${more}</div>
+          <div class="it">${list}${more}${
+            g.tools && g.tools.length
+              ? `<div style="margin-top:6px;padding-top:6px;border-top:1px solid #E2E6EB;">
+                   <b>Tools on site</b><br>${g.tools.map(t=>`${t.qty} ${escapeHtml(t.name)}`).join('<br>')}
+                 </div>`
+              : ''}</div>
           ${mapNavLinks(pt.lat, pt.lon, g.label)}
           ${moreInfo}
           ${shopTools}
@@ -5426,8 +5480,11 @@ function renderWhereList(groups){
   const wrap = document.getElementById('mapWhere');
   if(!wrap) return;
   if(mapWhereView === 'equipment') return renderWhereByEquipment(groups, wrap);
-  const rows = groups.filter(g=>g.items.length)
-    .sort((a,b)=> b.items.length - a.items.length || a.label.localeCompare(b.label));
+  // A site holding only tools belongs in this list as much as one with
+  // equipment — it's the kind of thing that gets left behind.
+  const rows = groups.filter(g=>g.items.length || g.toolCount)
+    .sort((a,b)=> (b.items.length + (b.toolCount||0)) - (a.items.length + (a.toolCount||0))
+                  || a.label.localeCompare(b.label));
   if(!rows.length){
     wrap.innerHTML = whereToggleHtml(0,'') + `<div class="empty">Nothing is out right now.</div>`;
     return;
@@ -5436,8 +5493,17 @@ function renderWhereList(groups){
     rows.map(g=>{
       const byType = {};
       g.items.forEach(it=>{ (byType[it.type] = byType[it.type] || []).push(it); });
-      const dot = g.overdue ? 'var(--red)' : g.isShop ? 'var(--cyan-dark)' : 'var(--blue)';
+      const toolsOnly = !g.items.length && g.toolCount > 0;
+      const dot = g.overdue ? 'var(--red)'
+                : g.isShop ? 'var(--cyan-dark)'
+                : toolsOnly ? '#A78BFA'
+                : 'var(--blue)';
       const pt = g.isShop ? shopPoint() : geocache[mapNorm(g.address)];
+      const toolRows = (g.tools||[]).map(t=>`<div class="mw-type">
+          <span class="q" style="color:#7C5CD6;">${t.qty}</span>
+          <span>${escapeHtml(t.name)}</span>
+          <span class="ids">tool</span>
+        </div>`).join('');
       const types = Object.keys(byType).sort().map(t=>{
         const list = byType[t];
         const ids = list.map(i=>i.id).join(', ');
@@ -5458,9 +5524,10 @@ function renderWhereList(groups){
             <div class="mw-name">${escapeHtml(g.label)}${g.overdue?` <span class="badge overdue">${g.overdue} overdue</span>`:''}</div>
             <div class="mw-addr">${escapeHtml(g.address || 'No address saved')}</div>
           </div>
-          <span class="mw-n">${g.items.length} unit${g.items.length!==1?'s':''}</span>
+          <span class="mw-n">${g.items.length ? `${g.items.length} unit${g.items.length!==1?'s':''}` : ''}${
+            g.toolCount ? `${g.items.length?' · ':''}${g.toolCount} tool${g.toolCount!==1?'s':''}` : ''}</span>
         </div>
-        <div class="mw-types">${types}</div>
+        <div class="mw-types">${types}${toolRows}</div>
         <div class="mw-go">${actions.join('')}</div>
       </div>`;
     }).join('');
