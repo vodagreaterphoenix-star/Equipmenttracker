@@ -1370,7 +1370,10 @@ details.hsec{scroll-margin-top:8px;}
       <div class="hbody">Tick each item going out. Only things in the shop or on a van are listed — anything already on a job or in maintenance won't appear, so you can't double-book a unit.<br><br>Use the filter box to narrow a long list, or tap <b>Scan</b> and scan each unit's QR label. The camera stays on, so you can scan a whole trailer load one after another.</div>
     </details>
 
-    <details class="hstep"><summary><span class="n">6</span><span class="t">Tap "Check out selected items"</span></summary>
+    <details class="hstep"><summary><span class="n">6</span><span class="t">Add tools and supplies going with it</span></summary>
+      <div class="hbody">Below the equipment list there's a <b>Tools &amp; supplies</b> section. Open it and enter how many of each are leaving — a ladder, two poles, a roll of plastic.<br><br>Tools show on the map at that job in violet until someone brings them back with <b>Bring back</b>. Consumables land on the job's materials list for billing. It won't let you send more than the shop has.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">7</span><span class="t">Tap "Check out selected items"</span></summary>
       <div class="hbody">Nothing is recorded until you tap this. The job now shows under <b>Active Jobs</b>, and the equipment appears on the map at that address.</div>
     </details>
   </div></details>
@@ -1972,6 +1975,29 @@ details.hsec{scroll-margin-top:8px;}
     </div>
     <div class="kit-list" id="kitList"></div>
   </div>
+
+  <!-- Tools and supplies going out with the same job -->
+  <div class="section-title" style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="toggleKitTools()">
+    <svg id="kitToolsChev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="transition:transform .15s;flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg>
+    <span style="flex:1;">Tools &amp; supplies <span id="kitToolsCount" style="text-transform:none;font-weight:500;"></span></span>
+  </div>
+  <div id="kitToolsWrap" style="display:none;">
+    <div class="hint" style="margin-top:0;">Ladders, poles, a buffer, plastic — anything leaving with this job. Tools show on the map at the job until they're brought back; consumables are billed to it.</div>
+    <div class="bw-wrap" style="margin-top:10px;">
+      <div class="bw-scroll" style="max-height:240px;">
+        <table class="bw-table">
+          <thead><tr>
+            <th class="bw-c-chk"></th>
+            <th>Item</th>
+            <th class="bw-c-have">Shop</th>
+            <th class="bw-c-qty">Taking</th>
+          </tr></thead>
+          <tbody id="kitToolRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <div class="kit-selected-bar">
     <div class="hint" id="kitCount" style="margin-bottom:8px;">0 items selected</div>
     <button class="btn btn-cyan" style="width:100%;" onclick="confirmKit()">Check out selected items</button>
@@ -4405,6 +4431,8 @@ async function openJobKit(returnToClient){
   document.getElementById('kitTech').value='';
   document.getElementById('kitReturn').value = addDays(4);
   document.getElementById('kitNotes').value = '';
+  kitTools = {}; kitToolsOpen = false;
+  applyKitToolsVisibility(); renderKitTools();
   document.getElementById('jobsiteList2').innerHTML = [...jobsitesKnown].map(j=>`<option value="${j}">`).join('');
   document.getElementById('techList2').innerHTML = [...techsKnown].map(t=>`<option value="${t}">`).join('');
   renderKitList('');
@@ -4414,6 +4442,62 @@ async function openJobKit(returnToClient){
     if(document.getElementById('modalKit').classList.contains('active')) renderKitList('');
   }
 }
+/* Tools and consumables leaving with a job kit. Kept separate from
+   kitSelected because equipment is picked by ID and these are picked by
+   quantity — same sheet, two different kinds of thing. */
+let kitTools = {};
+let kitToolsOpen = false;
+
+function toggleKitTools(){
+  kitToolsOpen = !kitToolsOpen;
+  applyKitToolsVisibility();
+  if(kitToolsOpen) renderKitTools();
+}
+function applyKitToolsVisibility(){
+  const wrap = document.getElementById('kitToolsWrap');
+  const chev = document.getElementById('kitToolsChev');
+  if(wrap) wrap.style.display = kitToolsOpen ? 'block' : 'none';
+  if(chev) chev.style.transform = kitToolsOpen ? 'rotate(0deg)' : 'rotate(-90deg)';
+}
+
+function renderKitTools(){
+  const body = document.getElementById('kitToolRows');
+  if(!body) return;
+  const rows = [...consumables].sort((a,b)=>
+    conCat(a).localeCompare(conCat(b)) || a.name.localeCompare(b.name));
+  body.innerHTML = rows.length ? rows.map(c=>{
+    const on = kitTools[c.id] !== undefined;
+    const have = Number(c.qty)||0;
+    const n = Number(kitTools[c.id])||0;
+    const short = n > have;
+    return `<tr class="${on?'on':''}">
+      <td class="bw-c-chk"><input type="checkbox" class="bw-chk" ${on?'checked':''} onchange="toggleKitTool('${c.id}',this.checked)"></td>
+      <td><div class="bw-name">${escapeHtml(c.name)}</div>
+          <div class="bw-unit">${escapeHtml(c.unit||'')} &middot; ${conCat(c)==='loadout'?'Tool':'Consumable'}</div></td>
+      <td class="bw-c-have"${short?' style="color:var(--red);font-weight:700;"':''}>${have}</td>
+      <td class="bw-c-qty">${on
+        ? `<input type="number" class="bw-qty" min="1" step="1" value="${n||''}" placeholder="0" inputmode="numeric" oninput="setKitTool('${c.id}',this.value)">`
+        : `<span class="bw-dash">&mdash;</span>`}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px;">No supplies set up yet.</td></tr>`;
+  updateKitToolsCount();
+}
+function toggleKitTool(id, on){
+  if(on) kitTools[id] = 1; else delete kitTools[id];
+  renderKitTools();
+}
+function setKitTool(id, val){
+  kitTools[id] = Math.max(0, parseInt(val,10) || 0);
+  updateKitToolsCount();
+}
+function updateKitToolsCount(){
+  const el = document.getElementById('kitToolsCount');
+  if(!el) return;
+  const ids = Object.keys(kitTools).filter(id=>(Number(kitTools[id])||0) > 0);
+  const units = ids.reduce((t,id)=>t + Number(kitTools[id]), 0);
+  el.textContent = ids.length ? `(${ids.length} item${ids.length!==1?'s':''} · ${units} unit${units!==1?'s':''})` : '';
+}
+
 function prefillKitAddress(){
   const name = document.getElementById('kitJobsite').value.trim();
   const match = Object.keys(clientAddresses).find(n=>n.toLowerCase()===name.toLowerCase());
@@ -4447,7 +4531,19 @@ async function confirmKit(){
   const ret = document.getElementById('kitReturn').value;
   const notes = document.getElementById('kitNotes').value.trim();
   if(!jobsite){ showToast('Add a customer first'); return; }
-  if(kitSelected.size===0){ showToast('Select at least one item'); return; }
+  const toolIds = Object.keys(kitTools).filter(id=>(Number(kitTools[id])||0) > 0);
+  if(kitSelected.size===0 && !toolIds.length){
+    showToast('Select some equipment, or add tools and supplies'); return;
+  }
+  // Refuse before anything is written if the shop can't cover it.
+  const short = toolIds.filter(id=>{
+    const c = consumables.find(x=>x.id===id);
+    return c && Number(kitTools[id]) > (Number(c.qty)||0);
+  });
+  if(short.length){
+    const names = short.map(id=>(consumables.find(x=>x.id===id)||{}).name).join(', ');
+    showToast(`Not enough in the shop: ${names}`); return;
+  }
   let sentCount = 0;
   const unavailable = [];
   kitSelected.forEach(id=>{
@@ -4465,17 +4561,41 @@ async function confirmKit(){
   });
   if(jobsite) jobsitesKnown.add(jobsite);
   if(tech) techsKnown.add(tech);
+
+  /* Tools and consumables go out as stock movements against this job, the
+     same shape the Consumables worksheet produces — so they show on the
+     map, and consumables land on the job's billable materials. */
+  let toolsSent = 0;
+  if(toolIds.length){
+    const ops = [];
+    toolIds.forEach(id=>{
+      const c = consumables.find(x=>x.id===id);
+      if(!c) return;
+      const n = Number(kitTools[id])||0;
+      ops.push({ id: c.id, delta: -n });
+      addActivityEntry('moved',
+        { id: c.name, type: conCat(c)==='loadout'?'Loadout':'Consumable',
+          jobsite: jobsite, tech: tech||'' },
+        `${n} ${c.unit||''} sent to ${jobsite}`.trim());
+      toolsSent += n;
+    });
+    const ok = await applyConsumableOps(ops);
+    if(!ok) return;        // nothing written; the toast explained why
+  }
+
   await saveActivity();
   await saveInventory();
   if(address && clientAddresses[jobsite]!==address){ clientAddresses[jobsite] = address; await saveClientAddresses(); }
   closeModal('modalKit');
   const returnTo = kitReturnToClient;
   kitReturnToClient = null;
+  kitTools = {};
   renderAll();
+  const toolNote = toolsSent ? ` + ${toolsSent} tool/supply unit${toolsSent!==1?'s':''}` : '';
   if(unavailable.length){
-    showToast(`${sentCount} sent to ${jobsite} — ${unavailable.join(', ')} already out, skipped`);
+    showToast(`${sentCount} sent to ${jobsite}${toolNote} — ${unavailable.join(', ')} already out, skipped`);
   } else {
-    showToast(`${sentCount} items sent to ${jobsite}`);
+    showToast(`${sentCount} item${sentCount!==1?'s':''}${toolNote} sent to ${jobsite}`);
   }
   if(returnTo) openClientDetail(returnTo);
 }
