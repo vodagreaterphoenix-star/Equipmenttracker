@@ -990,6 +990,25 @@ details.hsec{scroll-margin-top:8px;}
   .brand{gap:12px;}
 }
 
+/* Address suggestions */
+.addr-suggest{
+  display:none;margin-top:6px;border:1px solid var(--line);border-radius:10px;
+  background:var(--card);overflow:hidden;max-height:260px;overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.addr-row{
+  display:flex;align-items:center;gap:9px;padding:10px 12px;cursor:pointer;
+  border-bottom:1px solid var(--line);font-size:13px;color:var(--ink);
+}
+.addr-row:last-child{border-bottom:none;}
+.addr-row:active{background:var(--blue-bg);}
+.addr-row svg{width:15px;height:15px;color:var(--muted);flex-shrink:0;}
+.addr-row .txt{flex:1;min-width:0;}
+.addr-row .tag{
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;
+  background:var(--green-bg);color:var(--green);border-radius:99px;padding:3px 7px;flex-shrink:0;
+}
+
 </style>
 </head>
 <body>
@@ -3143,6 +3162,7 @@ async function editClientAddress(){
   renderClientAddressLine();
 }
 function openEditClient(){
+  attachAddressSuggest('ecAddress');
   if(!currentClientName) return;
   document.getElementById('ecClientName').textContent = currentClientName;
   document.getElementById('ecName').value = currentClientName;
@@ -4168,6 +4188,7 @@ function openCheckout(id){
   document.getElementById('outSub').textContent = `${it.id} — ${it.model||it.type}`;
   document.getElementById('outJobsite').value = '';
   document.getElementById('outAddress').value = '';
+  attachAddressSuggest('outAddress');
   document.getElementById('outTech').value = '';
   document.getElementById('outReturn').value = addDays(4);
   document.getElementById('outNotes').value = '';
@@ -4560,6 +4581,7 @@ async function openJobKit(returnToClient){
   document.getElementById('kitReturn').value = addDays(4);
   document.getElementById('kitNotes').value = '';
   kitTools = {}; kitToolsOpen = true;   // visible by default, or nobody finds it
+  attachAddressSuggest('kitAddress');
   applyKitToolsVisibility(); renderKitTools();
   document.getElementById('jobsiteList2').innerHTML = [...jobsitesKnown].map(j=>`<option value="${j}">`).join('');
   document.getElementById('techList2').innerHTML = [...techsKnown].map(t=>`<option value="${t}">`).join('');
@@ -7210,6 +7232,151 @@ async function confirmAssignCode(){
   showToast(`${code} is now ${c.name} — added ${per} ${c.unit||''}`.trim());
 }
 /* ===== END BATCH WORKSHEET (JAVASCRIPT) ===== */
+
+
+/* ===== BEGIN ADDRESS SUGGESTIONS =====================================
+   Typing an address by hand is where the map goes wrong: a missing comma
+   makes a street unfindable, and a loose match lands a Phoenix job in
+   Florida. Tapping a suggestion avoids both, because the coordinates come
+   attached to the result — nothing is looked up again afterwards.
+
+   Two sources, in order:
+     1. Addresses already saved against your own customers. Instant, no
+        network, and most jobs are repeat streets anyway.
+     2. Photon (photon.komoot.io) — free, no key, no account, built for
+        as-you-type search. Open-source, same OpenStreetMap data behind it
+        as the rest of the map.
+
+   Results are biased toward the shop so local streets rank first, and
+   anything implausibly far away is dropped.
+
+   If Photon is ever unreachable, typing still works exactly as before —
+   suggestions simply don't appear.
+   =================================================================== */
+const PHOTON_URL = 'https://photon.komoot.io/api/?limit=6&lang=en&q=';
+const SUGGEST_DEBOUNCE_MS = 280;   // wait for a pause in typing
+
+let suggestTimer = null;
+let suggestFor = null;      // the input currently showing suggestions
+let suggestPts = {};        // label -> {lat, lon}, from the tapped result
+
+/* Turns one Photon feature into a line of text and a point. */
+function photonLabel(f){
+  const p = f.properties || {};
+  const street = [p.housenumber, p.street || p.name].filter(Boolean).join(' ');
+  const city = p.city || p.town || p.village || p.county || '';
+  const bits = [street, city, p.state, p.postcode].filter(Boolean);
+  return bits.join(', ');
+}
+
+/* Our own customer addresses that match what's being typed. */
+function localAddressMatches(q){
+  const needle = q.toLowerCase();
+  const seen = new Set();
+  return Object.keys(clientAddresses)
+    .map(name => clientAddresses[name])
+    .filter(a => {
+      if(!a || seen.has(a.toLowerCase())) return false;
+      seen.add(a.toLowerCase());
+      return a.toLowerCase().includes(needle);
+    })
+    .slice(0, 3)
+    .map(a => ({ label: a, local: true, pt: geocache[mapNorm(a)] || null }));
+}
+
+async function fetchPhoton(q){
+  const shop = (typeof shopPoint === 'function') ? shopPoint() : null;
+  // Bias toward the shop so "Breezy Ct" means the one near you.
+  const bias = shop ? `&lat=${shop.lat}&lon=${shop.lon}` : '';
+  const res = await fetch(PHOTON_URL + encodeURIComponent(q) + bias);
+  const data = await res.json();
+  return (data.features || [])
+    .map(f => ({
+      label: photonLabel(f),
+      pt: { lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0] }
+    }))
+    .filter(r => r.label && (typeof geoPlausible !== 'function' || geoPlausible(r.pt)));
+}
+
+function suggestBoxFor(inputId){
+  let box = document.getElementById(inputId + 'Suggest');
+  if(!box){
+    box = document.createElement('div');
+    box.id = inputId + 'Suggest';
+    box.className = 'addr-suggest';
+    const input = document.getElementById(inputId);
+    input.parentNode.insertBefore(box, input.nextSibling);
+  }
+  return box;
+}
+
+function hideSuggestions(inputId){
+  const box = document.getElementById(inputId + 'Suggest');
+  if(box) box.style.display = 'none';
+}
+
+function renderSuggestions(inputId, rows){
+  const box = suggestBoxFor(inputId);
+  if(!rows.length){ box.style.display = 'none'; return; }
+  suggestPts = {};
+  box.innerHTML = rows.map((r,i)=>{
+    suggestPts[r.label] = r.pt;
+    const tag = r.local ? '<span class="tag">used before</span>' : '';
+    return `<div class="addr-row" onclick="pickSuggestion('${inputId}', ${i})">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+      <span class="txt">${escapeHtml(r.label)}</span>${tag}
+    </div>`;
+  }).join('');
+  box._rows = rows;
+  box.style.display = 'block';
+}
+
+/* Taking the point from the result is the whole value of this: the
+   address is never re-geocoded, so it can't match the wrong street. */
+async function pickSuggestion(inputId, i){
+  const box = document.getElementById(inputId + 'Suggest');
+  const row = box && box._rows && box._rows[i];
+  if(!row) return;
+  document.getElementById(inputId).value = row.label;
+  hideSuggestions(inputId);
+  if(row.pt && row.pt.lat !== undefined){
+    geocache[mapNorm(row.label)] = { lat: +(+row.pt.lat).toFixed(6),
+                                     lon: +(+row.pt.lon).toFixed(6) };
+    try{ await saveGeocache(); }catch(e){}
+  }
+}
+
+function attachAddressSuggest(inputId){
+  const input = document.getElementById(inputId);
+  if(!input || input.dataset.suggestOn) return;
+  input.dataset.suggestOn = '1';
+  input.setAttribute('autocomplete','off');
+
+  input.addEventListener('input', ()=>{
+    const q = input.value.trim();
+    clearTimeout(suggestTimer);
+    if(q.length < 4){ hideSuggestions(inputId); return; }
+
+    // Our own addresses can be shown immediately — no waiting.
+    const local = localAddressMatches(q);
+    if(local.length) renderSuggestions(inputId, local);
+
+    suggestTimer = setTimeout(async ()=>{
+      try{
+        const remote = await fetchPhoton(q);
+        const seen = new Set(local.map(r=>r.label.toLowerCase()));
+        const merged = local.concat(remote.filter(r=>!seen.has(r.label.toLowerCase())));
+        if(input.value.trim() === q) renderSuggestions(inputId, merged.slice(0,6));
+      }catch(e){
+        // Offline, or Photon unreachable. Typing still works.
+        console.warn('address suggestions unavailable', e);
+      }
+    }, SUGGEST_DEBOUNCE_MS);
+  });
+
+  input.addEventListener('blur', ()=> setTimeout(()=>hideSuggestions(inputId), 180));
+}
+/* ===== END ADDRESS SUGGESTIONS ===== */
 
 /* ===== END CONSUMABLES FEATURE (JAVASCRIPT) ===== */
 
