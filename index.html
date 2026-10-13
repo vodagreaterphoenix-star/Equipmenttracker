@@ -5294,6 +5294,31 @@ function mapNorm(a){ return (a||'').trim().toLowerCase().replace(/\s+/g,' '); }
 
    Order matters: most specific first, so a correct address isn't matched
    loosely by a later fallback. */
+/* Loosening an address to get a match has a cost: ask for
+   "1439 E Breezy Ct" without a city and Nominatim will happily return a
+   Breezy Ct in Florida. Every result is therefore checked against the
+   shop — anything beyond this radius is treated as a wrong match and the
+   next variant is tried instead. 250 miles covers the whole service area
+   with room to spare. */
+const GEO_MAX_MILES = 250;
+
+function milesBetween(a, b){
+  const R = 3958.8, rad = x => x * Math.PI / 180;
+  const dLat = rad(b.lat - a.lat), dLon = rad(b.lon - a.lon);
+  const h = Math.sin(dLat/2)**2 +
+            Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLon/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+/* true when a geocoded point is close enough to the shop to be believable.
+   With no shop position set yet, nothing can be judged, so everything is
+   allowed through. */
+function geoPlausible(pt){
+  const shop = shopPoint();
+  if(!shop || !pt) return true;
+  return milesBetween(shop, pt) <= GEO_MAX_MILES;
+}
+
 function mapAddressVariants(addr){
   const out = [];
   const push = v => { v = String(v||'').replace(/\s{2,}/g,' ').replace(/\s*,\s*,/g,',').trim();
@@ -5540,8 +5565,11 @@ async function mapGeocodeMissing(addresses){
         const res = await fetch(MAP_CFG.GEOCODE_URL + encodeURIComponent(variant));
         const rows = await res.json();
         if(rows && rows.length){
-          hit = { lat: parseFloat(rows[0].lat), lon: parseFloat(rows[0].lon) };
-          break;
+          const pt = { lat: parseFloat(rows[0].lat), lon: parseFloat(rows[0].lon) };
+          if(geoPlausible(pt)){ hit = pt; break; }
+          // A match hundreds of miles away is the wrong street of the same
+          // name. Discard it and try a more specific form.
+          console.warn('geocode rejected (too far):', variant, rows[0].display_name);
         }
       }catch(e){ console.error('geocode failed', variant, e); }
       await new Promise(r=>setTimeout(r, MAP_CFG.GEOCODE_DELAY_MS));
