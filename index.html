@@ -141,6 +141,7 @@ header.top::after{
 }
 .stat-card .n{font-size:22px;font-weight:800;line-height:1;}
 .stat-card .l{font-size:10px;color:rgba(255,255,255,0.65);margin-top:5px;letter-spacing:0.3px;text-transform:uppercase;}
+.stat-card .sub{font-size:9.5px;color:rgba(255,255,255,0.5);margin-top:3px;letter-spacing:0;text-transform:none;}
 .stat-card.alert .n{color:#F2A65A;}
 
 /* ---------- content ---------- */
@@ -1755,6 +1756,13 @@ details.hsec{scroll-margin-top:8px;}
   </div>
   <div id="cdEquipmentList"></div>
 
+  <div id="cdPlace" style="display:none;">
+    <div class="banner banner-amber" style="margin-bottom:10px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8A5A00" stroke-width="2.2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+      <span>This job isn't on the map — the address couldn't be found.</span>
+    </div>
+    <div class="btn-row" style="margin-bottom:12px;"><button class="btn btn-ghost" onclick="startJobPicker()">Pick it on the map instead</button></div>
+  </div>
   <div id="cdTools"></div>
   <div id="cdMaterials"></div>
 
@@ -2756,6 +2764,38 @@ async function reverseShopAddress(){
 
 /* Tap the map to place the shop. Works with no address at all. */
 let shopPickerOn = false;
+/* Places a JOB by tapping the map. Same idea as the shop picker: a
+   geocoder can't find every address — new builds, rural lots, anything
+   mistyped — and a job that can't be plotted is a job nobody can find.
+   The tapped point is written into the geocache against that address, so
+   the pin sticks for everyone. */
+let jobPickerFor = null;
+
+async function startJobPicker(name){
+  jobPickerFor = name || currentClientName;
+  if(!jobPickerFor) return;
+  if(!clientAddresses[jobPickerFor]){
+    showToast('Add an address on the job first, even a rough one');
+    return;
+  }
+  closeModal('modalClientDetail');
+  switchView('map');
+  await renderMap();
+  if(!mapObj){ showToast("Map isn't ready yet — try again in a moment"); return; }
+  document.getElementById('mapCanvas').classList.add('map-picking');
+  mapObj.dragging.enable();
+  showToast(`Tap the map where ${jobPickerFor} is`);
+  mapObj.once('click', async e=>{
+    document.getElementById('mapCanvas').classList.remove('map-picking');
+    const key = mapNorm(clientAddresses[jobPickerFor]);
+    geocache[key] = { lat: +e.latlng.lat.toFixed(6), lon: +e.latlng.lng.toFixed(6) };
+    await saveGeocache();
+    showToast(`${jobPickerFor} placed on the map`);
+    jobPickerFor = null;
+    renderMap();
+  });
+}
+
 async function startShopPicker(){
   closeModal('modalSettings');
   switchView('map');
@@ -2889,9 +2929,14 @@ function renderStats(){
   const shop = items.filter(i=>isHomeStatus(i.status)).length;
   const jobsite = items.filter(i=>i.status==='Jobsite').length;
   const overdue = items.filter(isOverdue).length;
+  // Tools on a job are out just as much as equipment is, so they belong
+  // in this number. Split out underneath so it stays readable.
+  const toolsOut = (typeof allToolsOutCount === 'function') ? allToolsOutCount() : 0;
+  const outTotal = jobsite + toolsOut;
   document.getElementById('statRow').innerHTML = `
     <div class="stat-card"><div class="n">${items.length}</div><div class="l">Total fleet</div></div>
-    <div class="stat-card"><div class="n">${jobsite}</div><div class="l">On jobsites</div></div>
+    <div class="stat-card"><div class="n">${outTotal}</div><div class="l">On jobsites</div>${
+      toolsOut ? `<div class="sub">${jobsite} equip &middot; ${toolsOut} tool${toolsOut!==1?'s':''}</div>` : ''}</div>
     <div class="stat-card ${overdue? 'alert':''}"><div class="n">${overdue}</div><div class="l">Overdue</div></div>
   `;
   const banner = document.getElementById('overdueBanner');
@@ -3488,6 +3533,14 @@ function renderClientTimeline(){
   /* Tools still on this job. They aren't numbered like equipment, so they
      can't live in the return checklist above — they get their own list
      with a route back to the movement screen. */
+  /* Offer the manual placement only when it's actually needed. */
+  const placeWrap = document.getElementById('cdPlace');
+  if(placeWrap){
+    const addr = clientAddresses[currentClientName] || '';
+    const located = addr && geocache[mapNorm(addr)] && geocache[mapNorm(addr)].lat;
+    placeWrap.style.display = (addr && !located) ? 'block' : 'none';
+  }
+
   const toolWrap = document.getElementById('cdTools');
   if(toolWrap){
     const tools = (typeof jobToolsOut === 'function') ? jobToolsOut(currentClientName) : [];
@@ -3898,7 +3951,7 @@ function renderReports(){
     <div class="stat-card-light ${missing?'alert':''}"><div class="n">${missing}</div><div class="l">Missing</div></div>
   `;
   const hintEl = document.getElementById('reportStatHint');
-  if(hintEl) hintEl.innerHTML = `<b>Total fleet</b> = every piece of equipment you own. <b>In shop</b> = available right now. <b>On jobsites</b> = currently checked out. <b>Missing</b> = reported missing.`;
+  if(hintEl) hintEl.innerHTML = `<b>Total fleet</b> = every piece of equipment you own. <b>In shop</b> = available right now. <b>On jobsites</b> = currently checked out, equipment and tools. <b>Missing</b> = reported missing.`;
   // second row-ish info folded into type table; maintenance shown there too
 
   // --- By job site ---
@@ -5306,6 +5359,19 @@ function movementFrom(a){
   const m = String(a.extra||'').match(/^(\d+)\s*([a-z]*)\s*(sent to|brought back from|loaded to|returned from)/i);
   if(!m) return null;
   return { qty: parseInt(m[1],10)||0, unit: m[2]||'', back: /brought back|returned/i.test(m[3]) };
+}
+
+/* Every tool sitting on a job right now, across all jobs. Used by the
+   home counters, so a ladder left on site is as visible as a dehu. */
+function allToolsOut(){
+  const out = [];
+  getClientNames().forEach(name=>{
+    jobToolsOut(name).forEach(t=>out.push({ ...t, jobsite: name }));
+  });
+  return out;
+}
+function allToolsOutCount(){
+  return allToolsOut().reduce((n,t)=>n + t.qty, 0);
 }
 
 function jobToolsOut(name){
