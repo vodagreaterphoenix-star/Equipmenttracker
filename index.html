@@ -1204,7 +1204,7 @@ details.hsec{scroll-margin-top:8px;}
 
   <!-- ===== BEGIN MAP FEATURE (HTML) — added 2026-09-17 ===== -->
   <div class="view" id="view-map">
-    <div class="section-title">Equipment map</div>
+    <div class="section-title">Equipment &amp; tools map</div>
     <div class="map-toolbar">
       <button class="map-btn" id="mapLocateBtn" onclick="mapLocateMe()">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
@@ -2636,11 +2636,15 @@ async function saveActivity(){
     await apiPost('saveActivity', activityLog.slice(0,5000));
   }catch(e){ console.error('save activity failed', e); setSyncing(false, true); }
 }
-function addActivityEntry(action, item, extra){
-  activityLog.unshift({
+/* `more` carries structured fields for stock movements — qty and dir —
+   so what's on a job can be totalled directly instead of being parsed
+   back out of the sentence in `extra`. The old parsing broke whenever a
+   supply had no unit, which made tools on a job silently invisible. */
+function addActivityEntry(action, item, extra, more){
+  activityLog.unshift(Object.assign({
     ts: new Date().toISOString(),
     action, id:item.id, type:item.type, jobsite:item.jobsite||'', tech:item.tech||'', extra:extra||''
-  });
+  }, more || {}));
 }
 function logActivity(action, item, extra){
   addActivityEntry(action, item, extra);
@@ -3279,13 +3283,11 @@ function jobMaterials(name){
   activityLog.forEach(a=>{
     if(a.jobsite !== name) return;
     if(a.type !== 'Consumable' && a.type !== 'Loadout') return;
-    const m = String(a.extra||'').match(/^(\d+)\s*(\S*)\s+(sent to|brought back from)/i);
-    if(!m) return;
-    const qty  = parseInt(m[1],10) || 0;
-    const unit = m[2] || '';
-    const back = /brought back/i.test(m[3]);
-    const row = used[a.id] = used[a.id] || { name:a.id, unit, kind:a.type, out:0, back:0 };
-    if(back) row.back += qty; else row.out += qty;
+    const mv = movementFrom(a);
+    if(!mv) return;
+    const row = used[a.id] = used[a.id] || { name:a.id, unit:mv.unit, kind:a.type, out:0, back:0 };
+    if(mv.unit && !row.unit) row.unit = mv.unit;
+    if(mv.back) row.back += mv.qty; else row.out += mv.qty;
   });
   return Object.values(used)
     .map(r=>({ ...r, net: r.out - r.back }))
@@ -3310,8 +3312,10 @@ function materialsReportHtml(name){
   if(tools.length){
     h += `<div class="report-subh">Tools taken to site</div><ul>`;
     tools.forEach(r=>{
-      h += `<li>${escapeHtml(r.name)} &mdash; ${r.out} ${escapeHtml(r.unit)}` +
-           (r.back ? `, ${r.back} returned` : ` <b>(not returned)</b>`) + `</li>`;
+      const still = r.out - r.back;
+      h += `<li>${escapeHtml(r.name)} &mdash; ${r.out} ${escapeHtml(r.unit)} out` +
+           (r.back ? `, ${r.back} returned` : '') +
+           (still > 0 ? ` &mdash; <b>${still} STILL ON SITE</b>` : ' — all back') + `</li>`;
     });
     h += `</ul>`;
   }
@@ -4634,7 +4638,8 @@ async function confirmKit(){
       addActivityEntry('moved',
         { id: c.name, type: conCat(c)==='loadout'?'Loadout':'Consumable',
           jobsite: jobsite, tech: tech||'' },
-        `${n} ${c.unit||''} sent to ${jobsite}`.trim());
+        `${n} ${c.unit||''} sent to ${jobsite}`.trim(),
+        { qty:n, unit:c.unit||'', dir:'out' });
       toolsSent += n;
     });
     const ok = await applyConsumableOps(ops);
@@ -5292,15 +5297,26 @@ function renderMapChips(){
    individually numbered like equipment, so there's no record to read a
    status off — this works it out from the movement log: everything sent
    to that job, minus everything brought back from it. */
+/* One reader for both shapes: entries written with qty/dir, and older
+   ones where the numbers only exist in the sentence. */
+function movementFrom(a){
+  if(a.qty !== undefined && a.dir) {
+    return { qty: Number(a.qty)||0, unit: a.unit||'', back: a.dir === 'in' };
+  }
+  const m = String(a.extra||'').match(/^(\d+)\s*([a-z]*)\s*(sent to|brought back from|loaded to|returned from)/i);
+  if(!m) return null;
+  return { qty: parseInt(m[1],10)||0, unit: m[2]||'', back: /brought back|returned/i.test(m[3]) };
+}
+
 function jobToolsOut(name){
   const net = {};
   activityLog.forEach(a=>{
     if(a.jobsite !== name || a.type !== 'Loadout') return;
-    const m = String(a.extra||'').match(/^(\d+)\s*(\S*)\s+(sent to|brought back from)/i);
-    if(!m) return;
-    const qty = parseInt(m[1],10) || 0;
-    const row = net[a.id] = net[a.id] || { name:a.id, unit:m[2]||'', qty:0 };
-    row.qty += /brought back/i.test(m[3]) ? -qty : qty;
+    const mv = movementFrom(a);
+    if(!mv) return;
+    const row = net[a.id] = net[a.id] || { name:a.id, unit:mv.unit, qty:0 };
+    if(mv.unit && !row.unit) row.unit = mv.unit;
+    row.qty += mv.back ? -mv.qty : mv.qty;
   });
   return Object.values(net).filter(r=>r.qty > 0).sort((a,b)=>a.name.localeCompare(b.name));
 }
@@ -5571,9 +5587,13 @@ async function renderMap(){
 
   renderMapChips();
   const universe = visibleInventory().filter(i=>i.status!=='Retired' && mapTypeAllowed(i)).length;
+  /* Tools are counted separately: they're quantities, not numbered units,
+     so folding them into the equipment total would make both meaningless. */
+  const toolsOut = groups.reduce((n,g)=>n + (g.toolCount||0), 0);
+  const toolBit = toolsOut ? ` · ${toolsOut} tool${toolsOut!==1?'s':''} out` : '';
   const note = mapTypeFilter.size ? ' · ' + [...mapTypeFilter].join(', ') : '';
   document.getElementById('mapCount').textContent =
-    `${plotted} of ${universe} plotted${note}`;
+    `${plotted} of ${universe} plotted${toolBit}${note}`;
 
   const bad = unplotted.filter(g=>g.address).length;
   const warn = document.getElementById('mapWarn');
@@ -6870,7 +6890,8 @@ async function bwApply(){
         jobsite: toJob ? van : '', tech: '' },
       bwMode==='recv' ? `Received ${n} ${c.unit||''}`.trim()
       : bwMode==='out' ? `${n} ${c.unit||''} sent to ${van}`.trim()
-      :                  `${n} ${c.unit||''} brought back from ${van}`.trim());
+      :                  `${n} ${c.unit||''} brought back from ${van}`.trim(),
+      { qty:n, unit:c.unit||'', dir: bwMode==='out' ? 'out' : bwMode==='in' ? 'in' : 'recv' });
   });
   // Don't clear the worksheet until the save is confirmed. If it fails,
   // everything the tech ticked is still there to retry rather than lost.
