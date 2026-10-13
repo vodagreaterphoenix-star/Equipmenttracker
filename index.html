@@ -5595,12 +5595,24 @@ async function renderMap(){
   document.getElementById('mapCount').textContent =
     `${plotted} of ${universe} plotted${toolBit}${note}`;
 
-  const bad = unplotted.filter(g=>g.address).length;
+  /* Name the jobs that couldn't be placed. "1 address couldn't be
+     located" tells you nothing you can act on; the job's name does. */
+  const badGroups  = unplotted.filter(g=>g.address);
+  const noAddress  = unplotted.filter(g=>!g.address && !g.isShop);
   const warn = document.getElementById('mapWarn');
-  if(bad){
-    warn.style.display='block';
-    warn.textContent = `${bad} address${bad>1?'es':''} couldn't be located. Check the address in the Jobs tab, or the shop address in Settings.`;
-  } else warn.style.display='none';
+  if(badGroups.length || noAddress.length){
+    warn.style.display = 'block';
+    const bits = [];
+    if(badGroups.length){
+      bits.push(`<b>Address not found:</b> ${badGroups.map(g=>escapeHtml(g.label)).join(', ')}. ` +
+                `Open the job and check the address, then tap Refresh.`);
+    }
+    if(noAddress.length){
+      bits.push(`<b>No address saved:</b> ${noAddress.map(g=>escapeHtml(g.label)).join(', ')}. ` +
+                `Open the job and add one so it shows on the map.`);
+    }
+    warn.innerHTML = bits.join('<br><br>');
+  } else warn.style.display = 'none';
 
   document.getElementById('mapUnplotted').innerHTML = unplotted.length
     ? `<div class="section-title">Not on the map (${unplotted.length})</div>` +
