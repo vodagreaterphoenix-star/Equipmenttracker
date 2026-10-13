@@ -5286,12 +5286,49 @@ function mapNorm(a){ return (a||'').trim().toLowerCase().replace(/\s+/g,' '); }
 
 /* Forms of an address to try, in order. Most geocoders choke on suite and
    unit numbers, which don't affect where the pin goes anyway. */
+/* Nominatim is far fussier than Google about how an address is written.
+   "1439 E Breezy Ct Phoenix, AZ 85086" fails on it, because without a
+   comma after "Ct" it reads the street as "Breezy Ct Phoenix" — which
+   doesn't exist. Rather than ask anyone to punctuate addresses correctly,
+   try a few progressively simpler forms and take the first that lands.
+
+   Order matters: most specific first, so a correct address isn't matched
+   loosely by a later fallback. */
 function mapAddressVariants(addr){
-  const out = [addr];
-  const noUnit = addr
-    .replace(/[,\s]*(#|suite|ste\.?|unit|apt\.?|bldg\.?|building)\s*[\w-]+/ig,'')
-    .replace(/\s{2,}/g,' ').replace(/\s*,\s*,/g,',').trim();
-  if(noUnit && noUnit !== addr) out.push(noUnit);
+  const out = [];
+  const push = v => { v = String(v||'').replace(/\s{2,}/g,' ').replace(/\s*,\s*,/g,',').trim();
+                      if(v && !out.includes(v)) out.push(v); };
+
+  push(addr);
+
+  // Drop unit / suite / apartment numbers — OSM rarely has them.
+  const noUnit = addr.replace(/[,\s]*(#|suite|ste\.?|unit|apt\.?|bldg\.?|building)\s*[\w-]+/ig,'');
+  push(noUnit);
+
+  /* The LAST five-digit group, not the first — a house number like 21411
+     is otherwise mistaken for the ZIP. */
+  const zips  = noUnit.match(/\b\d{5}(?:-\d{4})?\b/g) || [];
+  const zip   = zips.length ? zips[zips.length - 1].slice(0,5) : '';
+  const state = (noUnit.match(/\b([A-Z]{2})\b(?=[,\s]*\d{5}|\s*$)/) || [])[1] || '';
+
+  /* Insert the missing comma before a city name. Street types are a good
+     anchor: whatever follows "Ct", "Dr", "Rd" and friends is the city. */
+  const streetType = /\b(ct|dr|rd|st|ave|av|ln|blvd|way|cir|pl|ter|trl|pkwy|hwy|loop|run|path)\b\.?\s+(?![,])/i;
+  const m = noUnit.match(streetType);
+  if(m){
+    const i = m.index + m[0].length;
+    push(noUnit.slice(0, i).trim().replace(/\s+$/,'') + ', ' + noUnit.slice(i).trim());
+  }
+
+  // Street plus ZIP alone is often the most reliable thing to ask for.
+  const street = noUnit.split(',')[0].trim();
+  if(m && zip){
+    const justStreet = noUnit.slice(0, m.index + m[0].length).trim();
+    push(justStreet + ', ' + zip);
+  }
+  if(street && zip) push(street + ', ' + zip);
+  if(street && state) push(street + ', ' + state);
+
   return out;
 }
 
