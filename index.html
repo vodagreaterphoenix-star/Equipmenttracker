@@ -1755,6 +1755,7 @@ details.hsec{scroll-margin-top:8px;}
   </div>
   <div id="cdEquipmentList"></div>
 
+  <div id="cdTools"></div>
   <div id="cdMaterials"></div>
 
   <div class="section-title">Report</div>
@@ -2958,8 +2959,15 @@ function renderClientsList(){
   const rows = getClientNames().map(name=>{
     const items = getClientItems(name);
     const hasHistory = activityLog.some(a=>a.jobsite===name);
-    return { name, items, isNew: items.length===0 && !hasHistory };
-  }).filter(r=> jobsCategory==='active' ? (r.items.length>0 || r.isNew) : (r.items.length===0 && !r.isNew));
+    // A ladder still on site is a reason the job isn't finished, same as
+    // a dehu would be. Counting only numbered equipment closed jobs that
+    // still had our tools sitting on them.
+    const tools = (typeof jobToolsOut === 'function') ? jobToolsOut(name) : [];
+    const toolCount = tools.reduce((n,t)=>n + t.qty, 0);
+    return { name, items, tools, toolCount, isNew: items.length===0 && toolCount===0 && !hasHistory };
+  }).filter(r=> jobsCategory==='active'
+      ? (r.items.length>0 || r.toolCount>0 || r.isNew)
+      : (r.items.length===0 && r.toolCount===0 && !r.isNew));
   let filtered = q ? rows.filter(r=>r.name.toLowerCase().includes(q)) : rows;
   filtered.sort((a,b)=> a.name.localeCompare(b.name));
   if(filtered.length===0){
@@ -2973,6 +2981,17 @@ function renderClientsList(){
         <div class="body">
           <div class="id">${escapeHtml(r.name)}</div>
           <div class="meta"><span class="badge jobsite">New job \u2014 ready for equipment</span></div>
+        </div>
+        <svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>`;
+    }
+    if(r.items.length===0 && r.toolCount>0){
+      return `<div class="eq-card" onclick="openClientDetail('${escapeHtml(r.name).replace(/'/g,"\\'")}')">
+        <div class="ribbon" style="background:#A78BFA"></div>
+        <div class="body">
+          <div class="id">${escapeHtml(r.name)}</div>
+          <div class="meta"><span class="badge" style="background:#EDE7FD;color:#6D4FD0;">${r.toolCount} tool${r.toolCount!==1?'s':''} on site</span></div>
+          <div class="meta" style="margin-top:3px;color:var(--muted);">${escapeHtml(r.tools.map(t=>`${t.qty} ${t.name}`).join(' · '))}</div>
         </div>
         <svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
       </div>`;
@@ -3012,7 +3031,11 @@ function renderClientsList(){
 }
 function clientStatusText(name){
   const items = getClientItems(name);
-  if(items.length>0) return `${items.length} item${items.length!==1?'s':''} currently out`;
+  const tools = (typeof jobToolsOut === 'function') ? jobToolsOut(name) : [];
+  const toolN = tools.reduce((n,t)=>n + t.qty, 0);
+  const toolBit = toolN ? `, ${toolN} tool${toolN!==1?'s':''} on site` : '';
+  if(items.length>0) return `${items.length} item${items.length!==1?'s':''} currently out${toolBit}`;
+  if(toolN) return `${toolN} tool${toolN!==1?'s':''} still on site`;
   const hasHistory = activityLog.some(a=>a.jobsite===name);
   return hasHistory ? 'All equipment returned' : 'No equipment checked out yet — ready to load';
 }
@@ -3411,6 +3434,25 @@ function openBulkCheckinForClient(){
   toggleMaintWarn();
   openModal('modalIn');
 }
+/* Opens the movement worksheet already set to bring stock back from this
+   job, with the tools that are out on it ticked. */
+function bringBackFromJob(){
+  const name = currentClientName;
+  const tools = (typeof jobToolsOut === 'function') ? jobToolsOut(name) : [];
+  closeModal('modalClientDetail');
+  setTimeout(()=>{
+    openSupplies();
+    bwSetMode('in');
+    const sel = document.getElementById('bwVan');
+    if(sel) sel.value = name;
+    tools.forEach(t=>{
+      const c = consumables.find(x=>x.name === t.name);
+      if(c) bwPicked[c.id] = t.qty;
+    });
+    bwRender();
+  }, SHEET_CLOSE_MS + 20);
+}
+
 function checkoutMoreForClient(){
   const name = currentClientName;
   closeModal('modalClientDetail');
@@ -3438,6 +3480,22 @@ function renderClientTimeline(){
       ${e.extra? `<div class="rnotes">${escapeHtml(e.extra)}</div>` : ''}
     </div>`;
   };
+
+  /* Tools still on this job. They aren't numbered like equipment, so they
+     can't live in the return checklist above — they get their own list
+     with a route back to the movement screen. */
+  const toolWrap = document.getElementById('cdTools');
+  if(toolWrap){
+    const tools = (typeof jobToolsOut === 'function') ? jobToolsOut(currentClientName) : [];
+    toolWrap.innerHTML = tools.length
+      ? `<div class="section-title">Tools still on site</div>` +
+        tools.map(t=>`<div class="team-row">
+            <div class="nm"><div class="avatar" style="background:#A78BFA;color:#1F1335;">${initials(t.name)}</div>${escapeHtml(t.name)}</div>
+            <span style="font-weight:800;">${t.qty} <span style="font-weight:500;color:var(--muted);font-size:11.5px;">${escapeHtml(t.unit||'')}</span></span>
+          </div>`).join('') +
+        `<div class="btn-row" style="margin-top:8px;"><button class="btn btn-ghost" onclick="bringBackFromJob()">Bring these back</button></div>`
+      : '';
+  }
 
   const matWrap = document.getElementById('cdMaterials');
   if(matWrap){
@@ -4431,7 +4489,7 @@ async function openJobKit(returnToClient){
   document.getElementById('kitTech').value='';
   document.getElementById('kitReturn').value = addDays(4);
   document.getElementById('kitNotes').value = '';
-  kitTools = {}; kitToolsOpen = false;
+  kitTools = {}; kitToolsOpen = true;   // visible by default, or nobody finds it
   applyKitToolsVisibility(); renderKitTools();
   document.getElementById('jobsiteList2').innerHTML = [...jobsitesKnown].map(j=>`<option value="${j}">`).join('');
   document.getElementById('techList2').innerHTML = [...techsKnown].map(t=>`<option value="${t}">`).join('');
