@@ -2538,6 +2538,19 @@ async function loadData(silent){
     /* CONSUMABLES: shop supplies live in their own tab, never in `inventory` */
     backendSupportsConsumables = data.consumables!==undefined;
     consumables = (data.consumables||[]).filter(c=>c && c.name);
+
+    /* Discard any cached location that's nowhere near the shop before it
+       gets drawn. A wrong pin is worse than a missing one — someone will
+       drive to it. */
+    setTimeout(()=>{
+      if(typeof geoPlausible !== 'function') return;
+      let bad = 0;
+      Object.keys(geocache).forEach(k=>{
+        const v = geocache[k];
+        if(v && v.lat !== undefined && !geoPlausible(v)){ delete geocache[k]; bad++; }
+      });
+      if(bad) saveGeocache();
+    }, 0);
     if(!backendSupportsConsumables && !window._warnedNoConsumables){
       window._warnedNoConsumables = true;
       showToast('Supplies won\'t save yet — update your Apps Script backend');
@@ -5942,8 +5955,26 @@ function mapEnableTwoFingerGestures(canvas){
   mapObj.dragging.disable();   // start in page-scroll mode
 }
 
+/* Refresh clears two kinds of bad entry, not one:
+
+   - addresses that failed to resolve (stored as null), so they're retried
+   - addresses that DID resolve but to somewhere implausible
+
+   The second matters because a wrong answer is cached like any other. A
+   loose match on "1439 E Breezy Ct" once put a Phoenix job in Florida,
+   and no amount of refreshing fixed it, because as far as the cache was
+   concerned that address was already solved. */
 function mapRefresh(){
-  Object.keys(geocache).forEach(k=>{ if(geocache[k]===null) delete geocache[k]; });
+  let dropped = 0;
+  Object.keys(geocache).forEach(k=>{
+    const v = geocache[k];
+    if(v === null){ delete geocache[k]; return; }
+    if(v && !geoPlausible(v)){ delete geocache[k]; dropped++; }
+  });
+  if(dropped){
+    saveGeocache();
+    showToast(`${dropped} wrong location${dropped!==1?'s':''} cleared — looking ${dropped!==1?'them':'it'} up again`);
+  }
   renderMap();
 }
 
