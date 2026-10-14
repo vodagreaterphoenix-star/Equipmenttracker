@@ -2356,6 +2356,11 @@ details.hsec{scroll-margin-top:8px;}
     <label id="bwVanLabel">Which truck?</label>
     <select id="bwVan"></select>
   </div>
+  <div class="field" id="bwDestWrap" style="display:none;margin-bottom:10px;">
+    <label>Where is it going?</label>
+    <select id="bwDest"></select>
+    <div class="hint">Tools and supplies have one shop-wide count, so wherever it lands it comes off the job and back into stock. This is recorded in the job's history so you know which truck has it.</div>
+  </div>
   <div style="display:flex;gap:8px;margin-bottom:10px;">
     <button class="map-btn" style="flex-shrink:0;" onclick="openScanForSupplies()">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
@@ -7261,6 +7266,20 @@ function bwSetMode(mode){
   // The van picker only means something when stock is moving to or from one.
   const wrap = document.getElementById('bwVanWrap');
   wrap.style.display = (mode==='recv') ? 'none' : 'block';
+
+  /* Bringing stock back needs two answers: where it came FROM (which is
+     what clears the job) and where it physically went. The second is
+     recorded rather than counted, because tools have a single shop-wide
+     number — see the hint under the picker. */
+  const destWrap = document.getElementById('bwDestWrap');
+  if(destWrap){
+    destWrap.style.display = (mode === 'in') ? 'block' : 'none';
+    const dest = document.getElementById('bwDest');
+    if(dest){
+      dest.innerHTML = '<option value="Shop">Back to the shop</option>' +
+        customLocations.map(l=>`<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join('');
+    }
+  }
   document.getElementById('bwVanLabel').textContent =
     mode==='out' ? 'Going where?' : 'Coming back FROM where? (it all returns to the shop)';
   /* Where it's going, or where it came back from. Trucks first, then any
@@ -7386,6 +7405,8 @@ async function bwApply(){
   const ids = Object.keys(bwPicked).filter(id=>(Number(bwPicked[id])||0) > 0);
   if(!ids.length){ showToast('Enter a quantity first'); return; }
   const van = document.getElementById('bwVan').value || '';
+  const destSel = document.getElementById('bwDest');
+  const landedAt = (bwMode === 'in' && destSel) ? (destSel.value || 'Shop') : '';
   let moved = 0;
   const ops = [];
   ids.forEach(id=>{
@@ -7409,8 +7430,9 @@ async function bwApply(){
         jobsite: toJob ? van : '', tech: '' },
       bwMode==='recv' ? `Received ${n} ${c.unit||''}`.trim()
       : bwMode==='out' ? `${n} ${c.unit||''} sent to ${van}`.trim()
-      :                  `${n} ${c.unit||''} brought back from ${van}`.trim(),
-      { qty:n, unit:c.unit||'', dir: bwMode==='out' ? 'out' : bwMode==='in' ? 'in' : 'recv' });
+      :                  `${n} ${c.unit||''} brought back from ${van}${landedAt && landedAt!=='Shop' ? ` → ${landedAt}` : ''}`.trim(),
+      { qty:n, unit:c.unit||'', dir: bwMode==='out' ? 'out' : bwMode==='in' ? 'in' : 'recv',
+        landedAt: bwMode==='in' ? (landedAt||'Shop') : undefined });
   });
   // Don't clear the worksheet until the save is confirmed. If it fails,
   // everything the tech ticked is still there to retry rather than lost.
@@ -7422,7 +7444,9 @@ async function bwApply(){
   // The movement is done — drop the sheet. Reopening it shows the new
   // counts, which is the confirmation that it worked.
   closeModal('modalSupplies');
-  const verb = bwMode==='recv' ? 'received' : bwMode==='out' ? `sent to ${van}` : `brought back from ${van}`;
+  const verb = bwMode==='recv' ? 'received'
+             : bwMode==='out' ? `sent to ${van}`
+             : `brought back from ${van}${landedAt && landedAt!=='Shop' ? ` onto the ${landedAt}` : ''}`;
   showToast(`${moved} item${moved!==1?'s':''} ${verb}`);
 }
 /* --- scanning into the worksheet ------------------------------------
