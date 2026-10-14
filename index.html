@@ -1018,6 +1018,25 @@ details.hsec{scroll-margin-top:8px;}
   background:var(--green-bg);color:var(--green);border-radius:99px;padding:3px 7px;flex-shrink:0;
 }
 
+/* Home: what's out, grouped by job */
+.hj-card{
+  position:relative;display:flex;align-items:center;gap:10px;
+  background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:12px 12px 12px 16px;margin-bottom:8px;cursor:pointer;overflow:hidden;
+}
+.hj-card .ribbon{position:absolute;left:0;top:0;bottom:0;width:4px;}
+.hj-body{flex:1;min-width:0;}
+.hj-head{display:flex;align-items:center;gap:8px;}
+.hj-name{font-weight:700;font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hj-sub{font-size:11.5px;color:var(--muted);margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hj-lines{margin-top:8px;display:flex;flex-direction:column;gap:4px;}
+.hj-line{display:flex;align-items:baseline;gap:8px;font-size:12.5px;}
+.hj-line .q{font-weight:800;color:var(--navy-icon);min-width:20px;}
+.hj-line .nm{color:var(--ink);}
+.hj-line .ids{margin-left:auto;color:var(--muted);font-size:11px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:52%;text-align:right;}
+
 </style>
 </head>
 <body>
@@ -1355,19 +1374,23 @@ details.hsec{scroll-margin-top:8px;}
       <div class="hbody">The app offers this a few times and then stops. The steps above work at any point — nothing is lost by having dismissed it.</div>
     </details>
 
-    <details class="hstep"><summary><span class="n">3</span><span class="t">Check it says "Synced"</span></summary>
+    <details class="hstep"><summary><span class="n">3</span><span class="t">What's at the bottom of the home screen</span></summary>
+      <div class="hbody">Scroll down for <b>Out on jobs right now</b> — one card per job with its address, its equipment grouped by type with asset IDs, and any tools still on site.<br><br>
+        The stripe down the left tells you how long it's been running: green to day 3, amber days 4 and 5, red beyond, violet for a job holding only tools, red for anything overdue. Jobs needing attention sort to the top. Tap a card to open the job.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">4</span><span class="t">Check it says "Synced"</span></summary>
       <div class="hbody">
         Top right of the blue header. <b>Synced</b> means it's talking to the shop's records. <b>Saving…</b> means it's writing a change. <b>Offline</b> means it can't reach them — check your signal, and if you're somewhere with no bars, don't make changes you can't confirm went through.
       </div>
     </details>
 
-    <details class="hstep"><summary><span class="n">4</span><span class="t">Light or dark</span></summary>
+    <details class="hstep"><summary><span class="n">5</span><span class="t">Light or dark</span></summary>
       <div class="hbody">
         The sun/moon button next to Synced switches between them. It's per-device, so your phone can be dark while the shop computer is light. Dark is easier at 6am; light is easier in the sun.
       </div>
     </details>
 
-    <details class="hstep"><summary><span class="n">5</span><span class="t">If something looks wrong or out of date</span></summary>
+    <details class="hstep"><summary><span class="n">6</span><span class="t">If something looks wrong or out of date</span></summary>
       <div class="hbody">
         <b>iPhone:</b> swipe the app closed from the app switcher and reopen it. If it's on your home screen, you may need to delete the icon and add it again.<br><br>
         <b>Android / computer:</b> pull down to refresh, or Ctrl+Shift+R on a keyboard.
@@ -1593,10 +1616,22 @@ details.hsec{scroll-margin-top:8px;}
     <details class="hstep"><summary><span class="n">7</span><span class="t">If a job isn't on the map</span></summary>
       <div class="hbody">The banner above the map names the job and says whether no address is saved or the address couldn't be found.<br><br>Our map data comes from OpenStreetMap, which is volunteer-built. It doesn't have every house — new builds especially — so an address Google knows perfectly well can be missing here. That's not a fault in the app.</div>
     </details>
-    <details class="hstep"><summary><span class="n">8</span><span class="t">Three ways to place a stubborn address</span></summary>
-      <div class="hbody"><b>1. Tap a suggestion.</b> Start typing and suggestions appear below the box. Tapping one stores its exact location, so it can't end up on the wrong street.<br><br>
-        <b>2. Paste the coordinates.</b> In Google Maps on a computer, right-click the house and click the numbers at the top of the menu — that copies them. On a phone, long-press the spot and the numbers show in the search box. Paste them straight into the address field: <i>33.780123, -112.134567</i>. A Google Maps link works too.<br><br>
-        <b>3. Pick it on the map.</b> Open the job and tap <b>Pick it on the map instead</b>, then tap where it is. Ten seconds, always works, saves for everyone.</div>
+    <details class="hstep"><summary><span class="n">8</span><span class="t">Placing an address the map can't find</span></summary>
+      <div class="hbody"><b>Keep the street address in the address box.</b> That's what navigation uses and what's written on the front of the house. Coordinates only tell our map where to draw the pin — they never replace the address.<br><br>Open the job and the amber banner gives you three numbered options.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">9</span><span class="t">Getting coordinates on an iPhone</span></summary>
+      <div class="hbody"><b>Google Maps app:</b> search the address, then press and hold the exact spot until a red pin drops. The coordinates appear in the search bar at the top — tap them, then tap <b>Copy</b>.<br><br>
+        <b>Apple Maps:</b> press and hold to drop a pin, swipe the card up, and the coordinates are near the bottom. Press and hold to copy.<br><br>
+        Back here, tap <b>2. Paste coordinates</b> on the job's banner. If Safari asks permission to read the clipboard, allow it — or paste into the box it offers instead.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">10</span><span class="t">Getting coordinates on Android</span></summary>
+      <div class="hbody"><b>Google Maps app:</b> search the address, press and hold the exact spot to drop a pin, then swipe up on the card at the bottom. The coordinates are listed there — tap them to copy.<br><br>Back here, tap <b>2. Paste coordinates</b> on the job's banner.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">11</span><span class="t">Or just tap it on our map</span></summary>
+      <div class="hbody">Open the job and tap <b>or pick it on our map</b>, then tap where the house is. Ten seconds, no copying, works at the roadside. Saves for everyone, so nobody does it twice.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">12</span><span class="t">Why navigation still works</span></summary>
+      <div class="hbody">Apple, Google and Waze are all sent the <b>street address</b>, never the coordinates — so a tech gets the same turn-by-turn they'd get typing it themselves, and arrives at a house with a number on it. Coordinates only position the pin on our own map.</div>
     </details>
   </div></details>
 
@@ -3056,11 +3091,82 @@ function renderLowStockBanner(items){
   </div>`;
 }
 
+/* The bottom of the home screen used to be a flat list of every unit that
+   was out, which told you nothing about where anything was. Grouped by
+   job instead: one card per job, its equipment by type, its tools, and
+   how long it's been running. */
 function renderHome(){
-  const out = visibleInventory().filter(i=>i.status==='Jobsite').sort((a,b)=> (a.expectedReturnDate||'9999').localeCompare(b.expectedReturnDate||'9999'));
   const wrap = document.getElementById('homeJobsite');
-  if(out.length===0){ wrap.innerHTML = `<div class="empty">Everything's back in the shop.</div>`; return; }
-  wrap.innerHTML = out.map(it=>eqCardHTML(it)).join('');
+  if(!wrap) return;
+
+  const names = getClientNames();
+  const jobs = names.map(name=>{
+    const items = getClientItems(name);
+    const tools = (typeof jobToolsOut === 'function') ? jobToolsOut(name) : [];
+    const toolCount = tools.reduce((n,t)=>n + t.qty, 0);
+    const overdue = items.filter(isOverdue).length;
+    const days = items.map(daysOut).filter(d=>d !== null);
+    const oldest = days.length ? Math.max(...days) : null;
+    return { name, items, tools, toolCount, overdue, oldest };
+  }).filter(j=>j.items.length || j.toolCount);
+
+  if(!jobs.length){
+    wrap.innerHTML = `<div class="empty">Everything's back in the shop.</div>`;
+    return;
+  }
+
+  // Problems first: overdue, then longest running, then biggest.
+  jobs.sort((a,b)=> b.overdue - a.overdue
+                 || (b.oldest||0) - (a.oldest||0)
+                 || (b.items.length + b.toolCount) - (a.items.length + a.toolCount));
+
+  wrap.innerHTML = jobs.map(j=>{
+    const byType = {};
+    j.items.forEach(it=>{ (byType[it.type] = byType[it.type] || []).push(it); });
+
+    const stripe = j.overdue ? 'var(--red)'
+                 : (!j.items.length && j.toolCount) ? '#A78BFA'
+                 : j.oldest !== null ? ageColorForDays(j.oldest)
+                 : 'var(--blue)';
+
+    const lines = Object.keys(byType).sort().map(t=>{
+      const list = byType[t];
+      return `<div class="hj-line">
+        <span class="q">${list.length}</span>
+        <span class="nm">${escapeHtml(t)}${list.length!==1?'s':''}</span>
+        <span class="ids">${escapeHtml(list.map(i=>i.id).join(', '))}</span>
+      </div>`;
+    }).join('') +
+    j.tools.map(t=>`<div class="hj-line">
+        <span class="q" style="color:#7C5CD6;">${t.qty}</span>
+        <span class="nm">${escapeHtml(t.name)}</span>
+        <span class="ids">tool</span>
+      </div>`).join('');
+
+    const day = j.oldest !== null
+      ? `<span class="badge ${j.overdue ? 'overdue' : j.oldest > AGE_YELLOW_MAX ? 'overdue' : j.oldest > AGE_GREEN_MAX ? 'maintenance' : 'shop'}">Day ${j.oldest}</span>`
+      : '';
+
+    return `<div class="hj-card" onclick="openClientDetail(decodeURIComponent('${encodeURIComponent(j.name)}'))">
+      <div class="ribbon" style="background:${stripe}"></div>
+      <div class="hj-body">
+        <div class="hj-head">
+          <div class="hj-name">${escapeHtml(j.name)}</div>
+          ${j.overdue ? `<span class="badge overdue">${j.overdue} overdue</span>` : day}
+        </div>
+        <div class="hj-sub">${clientAddresses[j.name] ? escapeHtml(clientAddresses[j.name]) : 'No address saved'}</div>
+        <div class="hj-lines">${lines}</div>
+      </div>
+      <svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>`;
+  }).join('');
+}
+
+/* Same thresholds as the equipment stripes, from a day count. */
+function ageColorForDays(d){
+  if(d <= AGE_GREEN_MAX)  return 'var(--green)';
+  if(d <= AGE_YELLOW_MAX) return 'var(--amber)';
+  return 'var(--red)';
 }
 
 /* ============ JOBS / CLIENTS (derived from jobsite names already in use) ============ */
@@ -5714,12 +5820,19 @@ async function saveGeocache(){
 
 /* --- navigation links. Each opens the installed app where there is one,
        and falls back to that service's website otherwise. --------------- */
-function mapNavLinks(lat, lon, label){
-  const q = encodeURIComponent(label||'');
+/* Coordinates draw the pin. Navigation uses the STREET ADDRESS whenever
+   there is one — that's what's on the front of the house, and a tech
+   pulling up to a bare coordinate has nothing to check against. Both
+   Google and Apple also route better to a known address. Coordinates are
+   the destination only when no address exists. */
+function mapNavLinks(lat, lon, label, address){
+  const addr = (address || '').trim();
+  const q = encodeURIComponent(label || '');
+  const dest = addr ? encodeURIComponent(addr) : `${lat},${lon}`;
   return `<div class="map-nav-row">
-    <a class="a" target="_blank" rel="noopener" href="https://maps.apple.com/?daddr=${lat},${lon}&q=${q}">Apple</a>
-    <a class="g" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}">Google</a>
-    <a class="w" target="_blank" rel="noopener" href="https://www.waze.com/ul?ll=${lat},${lon}&navigate=yes">Waze</a>
+    <a class="a" target="_blank" rel="noopener" href="https://maps.apple.com/?daddr=${dest}&q=${q}">Apple</a>
+    <a class="g" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${dest}">Google</a>
+    <a class="w" target="_blank" rel="noopener" href="https://www.waze.com/ul?${addr ? 'q=' + dest : 'll=' + lat + ',' + lon}&navigate=yes">Waze</a>
   </div>`;
 }
 
@@ -5807,7 +5920,7 @@ async function renderMap(){
                    <b>Tools on site</b><br>${g.tools.map(t=>`${t.qty} ${escapeHtml(t.name)}`).join('<br>')}
                  </div>`
               : ''}</div>
-          ${mapNavLinks(pt.lat, pt.lon, g.label)}
+          ${mapNavLinks(pt.lat, pt.lon, g.label, g.address)}
           ${moreInfo}
           ${shopTools}
         </div>`)
@@ -5971,7 +6084,10 @@ function renderWhereList(groups){
       const actions = [];
       if(pt) actions.push(`<button class="map-btn" onclick="mapFlyTo(${pt.lat},${pt.lon})">Show on map</button>`);
       if(!g.isShop) actions.push(`<button class="map-btn" onclick="openClientDetail(decodeURIComponent('${encodeURIComponent(g.label)}'))">Open job</button>`);
-      if(pt) actions.push(`<a class="map-btn" style="text-decoration:none;" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${pt.lat},${pt.lon}">Directions</a>`);
+      if(pt){
+        const dest = g.address ? encodeURIComponent(g.address) : `${pt.lat},${pt.lon}`;
+        actions.push(`<a class="map-btn" style="text-decoration:none;" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${dest}">Directions</a>`);
+      }
       return `<div class="mw-card">
         <div class="mw-head">
           <span class="mw-dot" style="background:${dot}"></span>
