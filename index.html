@@ -3690,6 +3690,53 @@ function openBulkCheckinForClient(){
 /* Correcting the record. Sending the wrong tool out, or miscounting, has
    to be fixable without pretending the stock moved — so this writes the
    difference as a correction entry and adjusts the shop count to match. */
+/* Every tool movement logged against this job, newest first, with the
+   direction and quantity the app actually stored. If a count looks wrong,
+   this is where you see why — and whether an entry is missing its
+   direction entirely. */
+function toolHistoryHtml(name){
+  const rows = activityLog
+    .filter(a=>a.jobsite === name && (a.type === 'Loadout' || a.type === 'Consumable'))
+    .slice(0, 30);
+  if(!rows.length) return 'Nothing recorded against this job.';
+  return rows.map(a=>{
+    const mv = movementFrom(a);
+    const dir = !mv ? '<b style="color:var(--red);">unreadable</b>'
+              : mv.back ? `<b style="color:var(--green);">back +${mv.qty}</b>`
+              :           `<b style="color:var(--amber);">out −${mv.qty}</b>`;
+    return `<div style="padding:5px 0;border-bottom:1px solid var(--line);">
+      ${fmtDate(String(a.ts).slice(0,10))} &middot; ${escapeHtml(a.id)} &middot; ${dir}
+      <div style="color:var(--muted);font-size:11px;">${escapeHtml(a.extra||'')}</div>
+    </div>`;
+  }).join('');
+}
+
+/* Returns everything this job still shows to the shop in one go. Useful
+   when a job has been closed out in the real world and the record needs
+   to catch up. */
+async function clearToolsFromJob(){
+  const name = currentClientName;
+  const tools = (typeof jobToolsOut === 'function') ? jobToolsOut(name) : [];
+  if(!tools.length){ showToast('Nothing recorded on this job'); return; }
+  if(!confirm(`Return all ${tools.length} tool line${tools.length!==1?'s':''} from ${name} to the shop?\n\nThe history stays — this records them coming back.`)) return;
+  const ops = [];
+  tools.forEach(t=>{
+    const c = consumables.find(x=>x.name === t.name);
+    if(!c) return;
+    ops.push({ id: c.id, delta: t.qty });
+    addActivityEntry('moved',
+      { id: c.name, type: conCat(c)==='loadout'?'Loadout':'Consumable', jobsite: name, tech: '' },
+      `${t.qty} ${c.unit||''} brought back from ${name}`.trim(),
+      { qty: t.qty, unit: c.unit||'', dir: 'in' });
+  });
+  const ok = await applyConsumableOps(ops);
+  if(!ok) return;
+  await saveActivity();
+  showToast(`All tools returned from ${name}`);
+  openClientDetail(name);
+  renderAll();
+}
+
 function openFixTools(){
   const name = currentClientName;
   document.getElementById('ftJob').textContent = name;
@@ -3815,7 +3862,14 @@ function renderClientTimeline(){
         `<div class="btn-row" style="margin-top:8px;gap:8px;">
            <button class="btn btn-ghost" onclick="bringBackFromJob()">Bring these back</button>
            <button class="btn btn-ghost" onclick="openFixTools()">Correct</button>
-         </div>`
+         </div>
+         <div class="btn-row" style="margin-top:6px;">
+           <button class="btn btn-ghost" style="color:var(--red);" onclick="clearToolsFromJob()">Clear all tools from this job</button>
+         </div>
+         <details class="hstep" style="margin-top:8px;">
+           <summary><span class="n">?</span><span class="t">Show what's been recorded</span></summary>
+           <div class="hbody">${toolHistoryHtml(currentClientName)}</div>
+         </details>`
       : '';
   }
 
