@@ -400,6 +400,12 @@ nav.bottom .navbtn.scanbtn{color:var(--cyan-dark);}
   /* Stops short of the top so there's always a strip of backdrop to tap
      to dismiss, rather than the sheet swallowing the whole screen. */
   max-height:88vh;overflow-y:auto;padding:6px 18px 24px;
+  /* Vertical only. Anything wider than the sheet — a table, a long code —
+     used to let a thumb drag the whole sheet sideways, which reads as the
+     panel coming loose. Wide content scrolls inside its own box instead. */
+  overflow-x:hidden;
+  touch-action:pan-y;
+  overscroll-behavior:contain;
   animation:slideup .22s ease-out;
   /* A scrolling box draws its scrollbar INSIDE the border radius on
      Windows and Linux, and that track is square — which squares off the
@@ -839,8 +845,11 @@ body.modal-open #mapCanvas{ visibility:hidden; }
 .bw-act.active{border:2px solid var(--blue);background:var(--blue-bg);color:var(--blue);padding:13px 7px;}
 .bw-prompt{font-size:13px;color:var(--muted);margin-bottom:9px;}
 .bw-wrap{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;}
-.bw-scroll{max-height:340px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
-.bw-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:13px;}
+.bw-scroll{
+  max-height:340px;overflow-y:auto;overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;touch-action:pan-y;overscroll-behavior:contain;
+}
+.bw-table{width:100%;max-width:100%;table-layout:fixed;border-collapse:collapse;font-size:13px;}
 .bw-table th{
   position:sticky;top:0;z-index:2;
   background:var(--gray-bg);color:var(--muted);
