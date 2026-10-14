@@ -1837,6 +1837,16 @@ details.hsec{scroll-margin-top:8px;}
     </div>
   </div>
   <div id="cdTools"></div>
+  <div class="overlay" id="modalFixTools"><div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <div><div class="sheet-title">Correct the tools on this job</div><div class="sheet-sub" id="ftJob">—</div></div>
+      <button class="close-x" onclick="closeModal('modalFixTools')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="hint" style="margin-top:0;">For when the wrong tool was sent, or the count is off. Set what's <b>actually</b> on site. The shop count is adjusted to match and the change is logged as a correction.</div>
+    <div id="ftRows"></div>
+    <div class="btn-row"><button class="btn btn-cyan" onclick="saveToolCorrection()">Save correction</button></div>
+  </div></div>
   <div id="cdMaterials"></div>
 
   <div class="section-title">Report</div>
@@ -3677,6 +3687,55 @@ function openBulkCheckinForClient(){
 }
 /* Opens the movement worksheet already set to bring stock back from this
    job, with the tools that are out on it ticked. */
+/* Correcting the record. Sending the wrong tool out, or miscounting, has
+   to be fixable without pretending the stock moved — so this writes the
+   difference as a correction entry and adjusts the shop count to match. */
+function openFixTools(){
+  const name = currentClientName;
+  document.getElementById('ftJob').textContent = name;
+  const tools = (typeof jobToolsOut === 'function') ? jobToolsOut(name) : [];
+  const rows = document.getElementById('ftRows');
+  rows.innerHTML = tools.length ? tools.map(t=>`
+    <div class="team-row">
+      <div class="nm">${escapeHtml(t.name)}
+        <span style="color:var(--muted);font-weight:500;font-size:11.5px;">recorded: ${t.qty} ${escapeHtml(t.unit||'')}</span>
+      </div>
+      <input type="number" class="bw-qty" min="0" step="1" value="${t.qty}"
+             data-tool="${escapeHtml(t.name)}" data-was="${t.qty}" style="max-width:70px;">
+    </div>`).join('') : `<div class="empty">Nothing recorded on this job.</div>`;
+  openModal('modalFixTools');
+}
+
+async function saveToolCorrection(){
+  const name = currentClientName;
+  const inputs = [...document.querySelectorAll('#ftRows input[data-tool]')];
+  const ops = [];
+  let changed = 0;
+  inputs.forEach(inp=>{
+    const was = parseInt(inp.dataset.was,10) || 0;
+    const now = Math.max(0, parseInt(inp.value,10) || 0);
+    if(now === was) return;
+    const c = consumables.find(x=>x.name === inp.dataset.tool);
+    if(!c) return;
+    const diff = was - now;            // positive = fewer on site than recorded
+    ops.push({ id: c.id, delta: diff });   // those units go back to the shop
+    addActivityEntry('moved',
+      { id: c.name, type: conCat(c)==='loadout'?'Loadout':'Consumable', jobsite: name, tech: '' },
+      diff > 0 ? `${diff} ${c.unit||''} brought back from ${name} (correction)`.trim()
+               : `${-diff} ${c.unit||''} sent to ${name} (correction)`.trim(),
+      { qty: Math.abs(diff), unit: c.unit||'', dir: diff > 0 ? 'in' : 'out' });
+    changed++;
+  });
+  if(!changed){ closeModal('modalFixTools'); return; }
+  const ok = await applyConsumableOps(ops);
+  if(!ok) return;
+  await saveActivity();
+  closeModal('modalFixTools');
+  showToast(`${changed} correction${changed!==1?'s':''} saved`);
+  openClientDetail(name);
+  renderAll();
+}
+
 function bringBackFromJob(){
   const name = currentClientName;
   const tools = (typeof jobToolsOut === 'function') ? jobToolsOut(name) : [];
@@ -3685,7 +3744,16 @@ function bringBackFromJob(){
     openSupplies();
     bwSetMode('in');
     const sel = document.getElementById('bwVan');
-    if(sel) sel.value = name;
+    if(sel){
+      sel.value = name;
+      /* Locked on purpose. The picker is "coming back FROM where", and
+         changing it to a van here would record the tools returning from
+         that van instead — leaving the job still showing them out, which
+         is exactly the trap. Stock always lands back in the shop. */
+      sel.disabled = true;
+      const lbl = document.getElementById('bwVanLabel');
+      if(lbl) lbl.textContent = `Coming back from ${name} — returning to the shop`;
+    }
     tools.forEach(t=>{
       const c = consumables.find(x=>x.name === t.name);
       if(c) bwPicked[c.id] = t.qty;
@@ -3744,7 +3812,10 @@ function renderClientTimeline(){
             <div class="nm"><div class="avatar" style="background:#A78BFA;color:#1F1335;">${initials(t.name)}</div>${escapeHtml(t.name)}</div>
             <span style="font-weight:800;">${t.qty} <span style="font-weight:500;color:var(--muted);font-size:11.5px;">${escapeHtml(t.unit||'')}</span></span>
           </div>`).join('') +
-        `<div class="btn-row" style="margin-top:8px;"><button class="btn btn-ghost" onclick="bringBackFromJob()">Bring these back</button></div>`
+        `<div class="btn-row" style="margin-top:8px;gap:8px;">
+           <button class="btn btn-ghost" onclick="bringBackFromJob()">Bring these back</button>
+           <button class="btn btn-ghost" onclick="openFixTools()">Correct</button>
+         </div>`
       : '';
   }
 
@@ -7124,6 +7195,9 @@ var bwPicked = {};   // id -> quantity typed
 
 function bwSetMode(mode){
   bwMode = mode;
+  // Any deliberate mode change releases the lock set by bringBackFromJob.
+  const vanSel = document.getElementById('bwVan');
+  if(vanSel) vanSel.disabled = false;
   ['out','in','recv'].forEach(m=>{
     const el = document.getElementById('bwAct' + (m==='out'?'Out':m==='in'?'In':'Recv'));
     if(el) el.classList.toggle('active', m===mode);
@@ -7134,7 +7208,7 @@ function bwSetMode(mode){
   const wrap = document.getElementById('bwVanWrap');
   wrap.style.display = (mode==='recv') ? 'none' : 'block';
   document.getElementById('bwVanLabel').textContent =
-    mode==='out' ? 'Going where?' : 'Coming back from where?';
+    mode==='out' ? 'Going where?' : 'Coming back FROM where? (it all returns to the shop)';
   /* Where it's going, or where it came back from. Trucks first, then any
      job with equipment currently on it — supplies used on a job are the
      ones you'd bill back, so they need to be a destination too. */
