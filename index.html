@@ -2356,10 +2356,13 @@ details.hsec{scroll-margin-top:8px;}
     <label id="bwVanLabel">Which truck?</label>
     <select id="bwVan"></select>
   </div>
+  <div id="bwFromFixed" class="hint" style="display:none;margin:0 0 10px;">
+    <b>Coming back from <span id="bwFromName">—</span>.</b> Say where it's going below.
+  </div>
   <div class="field" id="bwDestWrap" style="display:none;margin-bottom:10px;">
     <label>Where is it going?</label>
     <select id="bwDest"></select>
-    <div class="hint">Tools and supplies have one shop-wide count, so wherever it lands it comes off the job and back into stock. This is recorded in the job's history so you know which truck has it.</div>
+    <div class="hint">Tools and supplies have one shop-wide count, so wherever it lands it comes off the job and back into stock. Recorded in the job's history, so you know which truck took it.</div>
   </div>
   <div style="display:flex;gap:8px;margin-bottom:10px;">
     <button class="map-btn" style="flex-shrink:0;" onclick="openScanForSupplies()">
@@ -3795,17 +3798,18 @@ function bringBackFromJob(){
   setTimeout(()=>{
     openSupplies();
     bwSetMode('in');
+    /* Arriving from a job answers "coming back from where" already, so
+       that picker is hidden rather than shown locked — a dropdown you
+       can't change is just noise. Only the destination is still a
+       question. */
+    bwLockedFrom = name;
     const sel = document.getElementById('bwVan');
-    if(sel){
-      sel.value = name;
-      /* Locked on purpose. The picker is "coming back FROM where", and
-         changing it to a van here would record the tools returning from
-         that van instead — leaving the job still showing them out, which
-         is exactly the trap. Stock always lands back in the shop. */
-      sel.disabled = true;
-      const lbl = document.getElementById('bwVanLabel');
-      if(lbl) lbl.textContent = `Coming back from ${name} — returning to the shop`;
-    }
+    if(sel) sel.value = name;
+    const vanWrap = document.getElementById('bwVanWrap');
+    if(vanWrap) vanWrap.style.display = 'none';
+    const fixed = document.getElementById('bwFromFixed');
+    const fixedName = document.getElementById('bwFromName');
+    if(fixed && fixedName){ fixedName.textContent = name; fixed.style.display = 'block'; }
     tools.forEach(t=>{
       const c = consumables.find(x=>x.name === t.name);
       if(c) bwPicked[c.id] = t.qty;
@@ -7252,9 +7256,12 @@ function consumablesPrintHtml(){
 var bwMode = 'out';   // loading a truck is the everyday job; receiving is occasional
 var bwPicked = {};   // id -> quantity typed
 
+let bwLockedFrom = null;   // set when arriving from a specific job
+
 function bwSetMode(mode){
   bwMode = mode;
   // Any deliberate mode change releases the lock set by bringBackFromJob.
+  bwLockedFrom = null;
   const vanSel = document.getElementById('bwVan');
   if(vanSel) vanSel.disabled = false;
   ['out','in','recv'].forEach(m=>{
@@ -7271,13 +7278,24 @@ function bwSetMode(mode){
      what clears the job) and where it physically went. The second is
      recorded rather than counted, because tools have a single shop-wide
      number — see the hint under the picker. */
+  const fromFixed = document.getElementById('bwFromFixed');
+  if(fromFixed) fromFixed.style.display = 'none';
+
   const destWrap = document.getElementById('bwDestWrap');
   if(destWrap){
     destWrap.style.display = (mode === 'in') ? 'block' : 'none';
     const dest = document.getElementById('bwDest');
     if(dest){
-      dest.innerHTML = '<option value="Shop">Back to the shop</option>' +
-        customLocations.map(l=>`<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join('');
+      /* Tools often go from one job straight to the next without touching
+         the shop. Picking another job here does both legs at once. */
+      const jobs = getClientNames().filter(n => n !== bwLockedFrom).sort()
+        .map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+      dest.innerHTML =
+        '<option value="Shop">Back to the shop</option>' +
+        (customLocations.length
+          ? `<optgroup label="Trucks">${customLocations.map(l=>`<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join('')}</optgroup>` : '') +
+        (jobs ? `<optgroup label="Straight to another job">${jobs}</optgroup>` : '') +
+        '<option value="Misc">Somewhere else</option>';
     }
   }
   document.getElementById('bwVanLabel').textContent =
@@ -7404,7 +7422,7 @@ function bwUpdateFooter(){
 async function bwApply(){
   const ids = Object.keys(bwPicked).filter(id=>(Number(bwPicked[id])||0) > 0);
   if(!ids.length){ showToast('Enter a quantity first'); return; }
-  const van = document.getElementById('bwVan').value || '';
+  const van = bwLockedFrom || document.getElementById('bwVan').value || '';
   const destSel = document.getElementById('bwDest');
   const landedAt = (bwMode === 'in' && destSel) ? (destSel.value || 'Shop') : '';
   let moved = 0;
@@ -7418,13 +7436,23 @@ async function bwApply(){
     // Send the movement, not the resulting number. Two techs applying
     // worksheets seconds apart both land, instead of the second one
     // overwriting the first.
-    const op = { id: c.id, delta: bwMode==='out' ? -n : n };
+    /* Straight from one job to another never passes through the shop, so
+       the shop count must not move — the two legs cancel out. */
+    const goingOnward = (bwMode==='in' && landedAt && getClientNames().includes(landedAt));
+    const op = { id: c.id, delta: bwMode==='out' ? -n : (goingOnward ? 0 : n) };
     if(bwMode==='recv') op.setOrdered = 0;
     ops.push(op);
     moved++;
     // Logged against the equipment activity feed so there's a record of
     // where supplies went, same as equipment moves.
     const toJob = bwMode!=='recv' && getClientNames().includes(van);
+    // Second leg, so the receiving job shows the tool and its pin follows.
+    if(goingOnward){
+      addActivityEntry('moved',
+        { id: c.name, type: conCat(c)==='loadout'?'Loadout':'Consumable', jobsite: landedAt, tech: '' },
+        `${n} ${c.unit||''} sent to ${landedAt} (straight from ${van})`.trim(),
+        { qty:n, unit:c.unit||'', dir:'out' });
+    }
     addActivityEntry('moved',
       { id: c.name, type: conCat(c)==='loadout'?'Loadout':'Consumable',
         jobsite: toJob ? van : '', tech: '' },
@@ -7439,13 +7467,16 @@ async function bwApply(){
   const ok = await applyConsumableOps(ops);
   if(!ok){ bwRender(); return; }      // the toast said why
   bwPicked = {};
+  bwLockedFrom = null;
   await saveActivity();
   bwRender();
   // The movement is done — drop the sheet. Reopening it shows the new
   // counts, which is the confirmation that it worked.
   closeModal('modalSupplies');
+  const onward = bwMode==='in' && landedAt && getClientNames().includes(landedAt);
   const verb = bwMode==='recv' ? 'received'
              : bwMode==='out' ? `sent to ${van}`
+             : onward ? `moved from ${van} straight to ${landedAt}`
              : `brought back from ${van}${landedAt && landedAt!=='Shop' ? ` onto the ${landedAt}` : ''}`;
   showToast(`${moved} item${moved!==1?'s':''} ${verb}`);
 }
