@@ -1791,6 +1791,7 @@ details.hsec{scroll-margin-top:8px;}
     <div>
       <div class="sheet-title" id="cdClientName">Client</div>
       <div id="cdAddressLine" onclick="editClientAddress()" style="font-size:12px;color:var(--cyan-dark);font-weight:600;cursor:pointer;margin-top:1px;">+ Add address</div>
+      <div id="cdPinLine" style="display:none;font-size:11px;color:var(--muted);margin-top:2px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;"></div>
       <div class="sheet-sub" id="cdClientSub">—</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
@@ -3377,6 +3378,21 @@ function renderClientAddressLine(){
   const el = document.getElementById('cdAddressLine');
   if(!el || !currentClientName) return;
   const addr = clientAddresses[currentClientName];
+
+  /* The street address is the headline — it's what a tech reads and what's
+     on the front of the house. A manual pin is shown underneath, quietly,
+     so it can be checked without ever displacing the address. */
+  const pinLine = document.getElementById('cdPinLine');
+  if(pinLine){
+    const pin = addr ? geocache[mapNorm(addr)] : null;
+    if(pin && pin.lat !== undefined){
+      pinLine.textContent = `Pinned: ${(+pin.lat).toFixed(5)}, ${(+pin.lon).toFixed(5)}`;
+      pinLine.style.display = 'block';
+    } else {
+      pinLine.style.display = 'none';
+    }
+  }
+
   if(addr){
     el.textContent = addr;
     el.classList.remove('addr-empty');
