@@ -1877,7 +1877,20 @@ details.hsec{scroll-margin-top:8px;}
   </div>
   <div class="field">
     <label>Address</label>
-    <input id="ecAddress" placeholder="Address, or paste coordinates from Google Maps">
+    <input id="ecAddress" placeholder="e.g. 1439 E Breezy Ct, Phoenix, AZ 85086">
+  </div>
+  <div class="field">
+    <label>Pinned location (optional)</label>
+    <div style="display:flex;gap:8px;">
+      <input id="ecCoords" placeholder="33.780123, -112.134567" spellcheck="false" inputmode="decimal">
+      <button class="btn btn-ghost" style="width:auto;padding:0 12px;" onclick="pasteIntoCoords()">Paste</button>
+    </div>
+    <div class="map-nav-row" style="margin-top:8px;">
+      <a class="g" id="ecGoogle" target="_blank" rel="noopener" href="#">Look up in Google</a>
+      <a class="a" id="ecApple" target="_blank" rel="noopener" href="#">Look up in Apple</a>
+      <a href="#" id="ecClearPin" onclick="clearJobPin();return false;" style="color:var(--red);">Clear pin</a>
+    </div>
+    <div class="hint" id="ecCoordsHint">Only needed when the address can't be found. The address above is still what Apple, Google and Waze navigate to — this just tells our own map where to draw the pin.</div>
   </div>
   <div class="field">
     <label>Assigned to (tech)</label>
@@ -2876,6 +2889,51 @@ let shopPickerOn = false;
    the pin sticks for everyone. */
 let jobPickerFor = null;
 
+/* Shows whatever this job is currently pinned to, and keeps the two
+   lookup links pointed at the address as it's typed. The address field
+   and the coordinates field do different jobs: the address is what gets
+   navigated to, the coordinates only place the pin on our map. */
+function syncCoordsField(){
+  const box = document.getElementById('ecCoords');
+  if(!box) return;
+  const addr = (document.getElementById('ecAddress').value || '').trim();
+  const pin = addr ? geocache[mapNorm(addr)] : null;
+  box.value = (pin && pin.lat !== undefined)
+    ? `${(+pin.lat).toFixed(6)}, ${(+pin.lon).toFixed(6)}` : '';
+
+  const q = encodeURIComponent(addr || '');
+  const g = document.getElementById('ecGoogle');
+  const a = document.getElementById('ecApple');
+  if(g) g.href = 'https://www.google.com/maps/search/?api=1&query=' + q;
+  if(a) a.href = 'https://maps.apple.com/?q=' + q;
+
+  const hint = document.getElementById('ecCoordsHint');
+  const clear = document.getElementById('ecClearPin');
+  if(clear) clear.style.display = box.value ? 'inline-block' : 'none';
+  if(hint && box.value){
+    hint.innerHTML = 'Pinned. The address above is still what Apple, Google and Waze navigate to — this only places the pin on our own map.';
+  }
+}
+
+/* Clipboard straight into the field, with a typed fallback for browsers
+   that won't allow reading it. */
+async function pasteIntoCoords(){
+  let text = '';
+  try{
+    if(navigator.clipboard && navigator.clipboard.readText) text = await navigator.clipboard.readText();
+  }catch(e){ /* denied — ask instead */ }
+  if(!text) text = prompt('Paste the coordinates or a Google/Apple Maps link:') || '';
+  const pt = coordsFromText(text);
+  if(!pt){ showToast("That didn't look like coordinates — try 33.78, -112.13"); return; }
+  document.getElementById('ecCoords').value = `${pt.lat.toFixed(6)}, ${pt.lon.toFixed(6)}`;
+  showToast('Pasted — tap Save changes to keep it');
+}
+
+function clearJobPin(){
+  document.getElementById('ecCoords').value = '';
+  showToast('Pin cleared — tap Save changes, then Refresh on the map to look it up again');
+}
+
 /* Reads coordinates straight from the clipboard, so the round trip is:
    tap through to Google, long-press the house, copy, come back, tap once.
    Clipboard access needs permission and isn't offered by every browser,
@@ -3340,6 +3398,7 @@ async function editClientAddress(){
 }
 function openEditClient(){
   attachAddressSuggest('ecAddress');
+  syncCoordsField();
   if(!currentClientName) return;
   document.getElementById('ecClientName').textContent = currentClientName;
   document.getElementById('ecName').value = currentClientName;
@@ -3360,8 +3419,20 @@ async function confirmEditClient(){
   const newName = document.getElementById('ecName').value.trim();
   const address = document.getElementById('ecAddress').value.trim();
   const tech = document.getElementById('ecTech').value.trim();
+  const coordText = (document.getElementById('ecCoords').value || '').trim();
 
   if(!newName){ showToast("Customer name can't be blank"); return; }
+
+  /* Validate the pin before anything is written, so a mistyped coordinate
+     can't be saved and then quietly draw the job in the wrong state. */
+  let pin = null;
+  if(coordText){
+    pin = coordsFromText(coordText);
+    if(!pin){ showToast("That pin doesn't look like coordinates — try 33.78, -112.13"); return; }
+    if(typeof geoPlausible === 'function' && !geoPlausible(pin)){
+      if(!confirm('Those coordinates are a long way from the shop. Save them anyway?')) return;
+    }
+  }
 
   if(newName !== oldName){
     const collision = getClientNames().find(n => n.toLowerCase()===newName.toLowerCase() && n!==oldName);
@@ -3384,6 +3455,20 @@ async function confirmEditClient(){
   if(address !== (clientAddresses[currentClientName]||'')){
     clientAddresses[currentClientName] = address;
     await saveClientAddresses();
+  }
+
+  /* The pin is stored against the address, which is how the map finds it.
+     An empty field removes it, so the address gets looked up again on the
+     next Refresh. */
+  if(address){
+    const key = mapNorm(address);
+    if(pin){
+      geocache[key] = { lat: +pin.lat.toFixed(6), lon: +pin.lon.toFixed(6) };
+      await saveGeocache();
+    } else if(geocache[key] && geocache[key].lat !== undefined){
+      delete geocache[key];
+      await saveGeocache();
+    }
   }
   const items = getClientItems(currentClientName);
   if(tech && items.length){
