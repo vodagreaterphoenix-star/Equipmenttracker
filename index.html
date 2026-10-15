@@ -721,11 +721,17 @@ body.modal-open #mapCanvas{ visibility:hidden; }
   animation:pinPulse 1.6s ease-in-out infinite;
 }
 @keyframes pinPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.12);}}
-/* Tools-only site: violet, so a ladder left on site doesn't look like a
-   job with drying equipment running. */
+/* A job holding only tools. Set to the same amber as the overdue
+   warnings, as asked.
+
+   NOTE: amber is also the colour of a normal job pin, so tools-only sites
+   now look the same as jobs with equipment on them. To tell them apart
+   again, change --tools-pin back to #A78BFA (violet) — it's used
+   everywhere this state is drawn, so one line does it. */
+:root{ --tools-pin:#E8A33D; --tools-pin-ink:#3D2A08; }
 .map-pin.is-tools{
-  background:#A78BFA;color:#1F1335;
-  box-shadow:0 0 0 2px rgba(167,139,250,.35), 0 0 12px rgba(167,139,250,.7);
+  background:var(--tools-pin);color:var(--tools-pin-ink);
+  box-shadow:0 0 0 2px rgba(232,163,61,.35), 0 0 12px rgba(232,163,61,.7);
 }
 .map-pin.is-shop{
   background:#00E5FF;color:#04202A;font-size:14px;
@@ -1274,7 +1280,7 @@ details.hsec{scroll-margin-top:8px;}
     <div class="map-unplotted" id="mapNearest"></div>
     <div id="mapWhere"></div>
     <div class="map-unplotted" id="mapUnplotted"></div>
-    <div class="hint">Tap a pin for what's there and directions. Pin colours: amber a job with equipment, <b>violet a job with only tools</b>, teal the shop, red something overdue.</div>
+    <div class="hint">Tap a pin for what's there and directions. Pin colours: amber a job with equipment, <b>a job with only tools</b>, teal the shop, red something overdue.</div>
   </div>
   <!-- ===== END MAP FEATURE (HTML) ===== -->
 
@@ -1376,7 +1382,7 @@ details.hsec{scroll-margin-top:8px;}
 
     <details class="hstep"><summary><span class="n">3</span><span class="t">What's at the bottom of the home screen</span></summary>
       <div class="hbody">Scroll down for <b>Out on jobs right now</b> — one card per job with its address, its equipment grouped by type with asset IDs, and any tools still on site.<br><br>
-        The stripe down the left tells you how long it's been running: green to day 3, amber days 4 and 5, red beyond, violet for a job holding only tools, red for anything overdue. Jobs needing attention sort to the top. Tap a card to open the job.</div>
+        The stripe down the left tells you how long it's been running: green to day 3, amber days 4 and 5, red beyond, amber for a job holding only tools, red for anything overdue. Jobs needing attention sort to the top. Tap a card to open the job.</div>
     </details>
     <details class="hstep"><summary><span class="n">4</span><span class="t">Check it says "Synced"</span></summary>
       <div class="hbody">
@@ -1423,7 +1429,7 @@ details.hsec{scroll-margin-top:8px;}
     </details>
 
     <details class="hstep"><summary><span class="n">6</span><span class="t">Add tools and supplies going with it</span></summary>
-      <div class="hbody">Below the equipment list there's a <b>Tools &amp; supplies</b> section. Open it and enter how many of each are leaving — a ladder, two poles, a roll of plastic.<br><br>Tools show on the map at that job in violet until someone brings them back with <b>Bring back</b>. Consumables land on the job's materials list for billing. It won't let you send more than the shop has.</div>
+      <div class="hbody">Below the equipment list there's a <b>Tools &amp; supplies</b> section. Open it and enter how many of each are leaving — a ladder, two poles, a roll of plastic.<br><br>Tools show on the map at that job until someone brings them back with <b>Bring back</b>. Consumables land on the job's materials list for billing. It won't let you send more than the shop has.</div>
     </details>
     <details class="hstep"><summary><span class="n">7</span><span class="t">Tap "Check out selected items"</span></summary>
       <div class="hbody">Nothing is recorded until you tap this. The job now shows under <b>Active Jobs</b>, and the equipment appears on the map at that address.</div>
@@ -1588,7 +1594,7 @@ details.hsec{scroll-margin-top:8px;}
     <details class="hstep"><summary><span class="n">1</span><span class="t">Reading the pins</span></summary>
       <div class="hbody">Each pin carries the number of things there.<br><br>
         <b>Amber</b> — a job with drying equipment on it.<br>
-        <b>Violet</b> — a job with <i>only</i> tools: a ladder, poles, a buffer. Nothing running, but something to collect.<br>
+        <b>Amber, tool count</b> — a job with <i>only</i> tools: a ladder, poles, a buffer. Nothing running, but something to collect.<br>
         <b>Teal</b> — the shop.<br>
         <b>Red, pulsing</b> — something there is overdue.<br><br>
         Tap a pin for what's there, the address, and Apple / Google / Waze directions.</div>
@@ -3205,7 +3211,7 @@ function renderHome(){
     j.items.forEach(it=>{ (byType[it.type] = byType[it.type] || []).push(it); });
 
     const stripe = j.overdue ? 'var(--red)'
-                 : (!j.items.length && j.toolCount) ? '#A78BFA'
+                 : (!j.items.length && j.toolCount) ? 'var(--tools-pin)'
                  : j.oldest !== null ? ageColorForDays(j.oldest)
                  : 'var(--blue)';
 
@@ -3218,7 +3224,7 @@ function renderHome(){
       </div>`;
     }).join('') +
     j.tools.map(t=>`<div class="hj-line">
-        <span class="q" style="color:#7C5CD6;">${t.qty}</span>
+        <span class="q" style="color:var(--amber);">${t.qty}</span>
         <span class="nm">${escapeHtml(t.name)}</span>
         <span class="ids">tool</span>
       </div>`).join('');
@@ -3307,10 +3313,10 @@ function renderClientsList(){
     }
     if(r.items.length===0 && r.toolCount>0){
       return `<div class="eq-card" onclick="openClientDetail('${escapeHtml(r.name).replace(/'/g,"\\'")}')">
-        <div class="ribbon" style="background:#A78BFA"></div>
+        <div class="ribbon" style="background:var(--tools-pin)"></div>
         <div class="body">
           <div class="id">${escapeHtml(r.name)}</div>
-          <div class="meta"><span class="badge" style="background:#EDE7FD;color:#6D4FD0;">${r.toolCount} tool${r.toolCount!==1?'s':''} on site</span></div>
+          <div class="meta"><span class="badge" style="background:var(--amber-bg);color:var(--amber);">${r.toolCount} tool${r.toolCount!==1?'s':''} on site</span></div>
           <div class="meta" style="margin-top:3px;color:var(--muted);">${escapeHtml(r.tools.map(t=>`${t.qty} ${t.name}`).join(' · '))}</div>
         </div>
         <svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
@@ -4010,7 +4016,7 @@ function renderClientTimeline(){
     toolWrap.innerHTML = tools.length
       ? `<div class="section-title">Tools still on site</div>` +
         tools.map(t=>`<div class="team-row">
-            <div class="nm"><div class="avatar" style="background:#A78BFA;color:#1F1335;">${initials(t.name)}</div>${escapeHtml(t.name)}</div>
+            <div class="nm"><div class="avatar" style="background:var(--tools-pin);color:var(--tools-pin-ink);">${initials(t.name)}</div>${escapeHtml(t.name)}</div>
             <span style="font-weight:800;">${t.qty} <span style="font-weight:500;color:var(--muted);font-size:11.5px;">${escapeHtml(t.unit||'')}</span></span>
           </div>`).join('') +
         `<div class="btn-row" style="margin-top:8px;gap:8px;">
@@ -6367,11 +6373,11 @@ function renderWhereList(groups){
       const toolsOnly = !g.items.length && g.toolCount > 0;
       const dot = g.overdue ? 'var(--red)'
                 : g.isShop ? 'var(--cyan-dark)'
-                : toolsOnly ? '#A78BFA'
+                : toolsOnly ? 'var(--tools-pin)'
                 : 'var(--blue)';
       const pt = g.isShop ? shopPoint() : geocache[mapNorm(g.address)];
       const toolRows = (g.tools||[]).map(t=>`<div class="mw-type">
-          <span class="q" style="color:#7C5CD6;">${t.qty}</span>
+          <span class="q" style="color:var(--amber);">${t.qty}</span>
           <span>${escapeHtml(t.name)}</span>
           <span class="ids">tool</span>
         </div>`).join('');
