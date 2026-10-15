@@ -2437,6 +2437,11 @@ details.hsec{scroll-margin-top:8px;}
     <input id="supDefaultMin" type="number" min="0" step="1">
   </div>
   <div class="field">
+    <label>Flag tools left on a job after</label>
+    <input id="supToolDays" type="number" min="1" step="1">
+    <div class="hint">Days. Tools turn around faster than drying equipment, so this is separate from the equipment day colours. Past this, the tool and its job show red.</div>
+  </div>
+  <div class="field">
     <label>Warn me when stock is within</label>
     <input id="supWarnBuffer" type="number" min="0" step="1">
     <div class="hint">Counts as "getting low" this many above the reorder point, so you get a nudge before you're actually short. 0 means only warn at the reorder point itself.</div>
@@ -4022,7 +4027,8 @@ function renderClientTimeline(){
       ? `<div class="section-title">Tools still on site</div>` +
         tools.map(t=>`<div class="team-row">
             <div class="nm"><div class="avatar" style="background:var(--tools-pin);color:var(--tools-pin-ink);">${initials(t.name)}</div>${escapeHtml(t.name)}</div>
-            <span style="font-weight:800;">${t.qty} <span style="font-weight:500;color:var(--muted);font-size:11.5px;">${escapeHtml(t.unit||'')}</span></span>
+            <span style="font-weight:800;">${t.qty} <span style="font-weight:500;color:var(--muted);font-size:11.5px;">${escapeHtml(t.unit||'')}</span>
+              ${t.days !== null ? `<span class="badge ${t.overdue ? 'overdue' : t.days > 1 ? 'maintenance' : 'shop'}" style="margin-left:6px;">Day ${t.days}</span>` : ''}</span>
           </div>`).join('') +
         `<div class="btn-row" style="margin-top:8px;gap:8px;">
            <button class="btn btn-ghost" onclick="bringBackFromJob()">Bring these back</button>
@@ -6002,17 +6008,41 @@ function allToolsOutCount(){
   return allToolsOut().reduce((n,t)=>n + t.qty, 0);
 }
 
+/* How many days a tool can sit on a job before it's flagged. Tools turn
+   around faster than drying equipment — poles and a buffer are usually a
+   day or two — so this is separate from the equipment thresholds, and
+   lives in Settings so the shop can change it. */
+function toolOverdueDays(){
+  const n = parseInt(appSettings.toolOverdueDays, 10);
+  return isNaN(n) ? 3 : Math.max(1, n);
+}
+
 function jobToolsOut(name){
   const net = {};
-  activityLog.forEach(a=>{
-    if(a.jobsite !== name || a.type !== 'Loadout') return;
+  // Oldest first, so the date we keep is when the tool first went out.
+  const entries = activityLog
+    .filter(a=>a.jobsite === name && a.type === 'Loadout')
+    .slice().reverse();
+  entries.forEach(a=>{
     const mv = movementFrom(a);
     if(!mv) return;
-    const row = net[a.id] = net[a.id] || { name:a.id, unit:mv.unit, qty:0 };
+    const row = net[a.id] = net[a.id] || { name:a.id, unit:mv.unit, qty:0, since:null };
     if(mv.unit && !row.unit) row.unit = mv.unit;
-    row.qty += mv.back ? -mv.qty : mv.qty;
+    if(mv.back){
+      row.qty -= mv.qty;
+      if(row.qty <= 0) row.since = null;      // all back; the clock resets
+    } else {
+      if(row.qty <= 0) row.since = a.ts;      // first of a new stay
+      row.qty += mv.qty;
+    }
   });
-  return Object.values(net).filter(r=>r.qty > 0).sort((a,b)=>a.name.localeCompare(b.name));
+  return Object.values(net)
+    .filter(r=>r.qty > 0)
+    .map(r=>{
+      const days = r.since ? Math.max(0, Math.floor((Date.now() - new Date(r.since)) / 86400000)) : null;
+      return { ...r, days, overdue: days !== null && days > toolOverdueDays() };
+    })
+    .sort((a,b)=>a.name.localeCompare(b.name));
 }
 
 function mapGroups(){
@@ -6042,6 +6072,8 @@ function mapGroups(){
                              items: [], overdue: 0, isShop: false };
     g[name].tools = tools;
     g[name].toolCount = tools.reduce((n,t)=>n + t.qty, 0);
+    // A tool sitting too long makes the pin red, same as overdue equipment.
+    g[name].overdue += tools.filter(t=>t.overdue).length;
   });
 
   return Object.values(g);
@@ -6780,6 +6812,7 @@ function setConFilter(f){
 function openSupplies(){
   document.getElementById('supDefaultMin').value  = conDefaultMin();
   document.getElementById('supWarnBuffer').value  = conWarnBuffer();
+  document.getElementById('supToolDays').value   = toolOverdueDays();
   // Always opens collapsed. The screen is for moving materials; the
   // stock list is there when you ask for it.
   conStockOpen = false;
@@ -6791,6 +6824,7 @@ function openSupplies(){
 async function saveSupplySettings(){
   appSettings.conDefaultMin = String(Math.max(0, parseInt(document.getElementById('supDefaultMin').value,10) || 0));
   appSettings.conWarnBuffer = String(Math.max(0, parseInt(document.getElementById('supWarnBuffer').value,10) || 0));
+  appSettings.toolOverdueDays = String(Math.max(1, parseInt(document.getElementById('supToolDays').value,10) || 3));
   const ok = await saveSettingsChecked();
   renderConsumables();
   if(ok) showToast('Reorder levels saved');
