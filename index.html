@@ -3423,6 +3423,20 @@ async function confirmEditClient(){
 
   if(!newName){ showToast("Customer name can't be blank"); return; }
 
+  /* Coordinates pasted into the ADDRESS box are a common slip, and a
+     costly one: the street address is what a tech navigates to and what's
+     written on the front of the house. Catch it, move them to the pin
+     field where they belong, and ask for the real address. */
+  const addrAsPin = coordsFromText(address);
+  if(addrAsPin){
+    document.getElementById('ecCoords').value =
+      `${addrAsPin.lat.toFixed(6)}, ${addrAsPin.lon.toFixed(6)}`;
+    document.getElementById('ecAddress').value = '';
+    syncCoordsField();
+    showToast('Those are coordinates — moved to Pinned location. Now type the street address above.');
+    return;
+  }
+
   /* Validate the pin before anything is written, so a mistyped coordinate
      can't be saved and then quietly draw the job in the wrong state. */
   let pin = null;
@@ -4596,6 +4610,10 @@ async function confirmCheckout(){
   }
   const jobsite = document.getElementById('outJobsite').value.trim();
   const address = document.getElementById('outAddress').value.trim();
+  if(coordsFromText(address)){
+    showToast('That looks like coordinates. Put the street address here — you can pin the exact spot from the job afterwards.');
+    return;
+  }
   const tech = document.getElementById('outTech').value.trim();
   if(!jobsite){ showToast('Add a customer first'); return; }
   it.status='Jobsite'; it.jobsite=jobsite; it.tech=tech;
@@ -5057,6 +5075,10 @@ function updateKitCount(){
 async function confirmKit(){
   const jobsite = document.getElementById('kitJobsite').value.trim();
   const address = document.getElementById('kitAddress').value.trim();
+  if(coordsFromText(address)){
+    showToast('That looks like coordinates. Put the street address here — you can pin the exact spot from the job afterwards.');
+    return;
+  }
   const tech = document.getElementById('kitTech').value.trim();
   const ret = document.getElementById('kitReturn').value;
   const notes = document.getElementById('kitNotes').value.trim();
@@ -5747,10 +5769,26 @@ function geoPlausible(pt){
    mistaken for a coordinate pair. */
 function coordsFromText(text){
   const t = String(text||'').trim();
+
+  // Google Maps URL: the !3d/!4d pair is the precise one.
   const d = t.match(/!3d(-?\d{1,3}\.\d+)!4d(-?\d{1,3}\.\d+)/);
   if(d) return { lat: parseFloat(d[1]), lon: parseFloat(d[2]) };
   const at = t.match(/@(-?\d{1,3}\.\d+),\s*(-?\d{1,3}\.\d+)/);
   if(at) return { lat: parseFloat(at[1]), lon: parseFloat(at[2]) };
+
+  /* Apple Maps copies coordinates as "33.82161° N, 112.05017° W" — degree
+     symbols, and a compass letter instead of a minus sign. That format
+     used to fail entirely, so a perfectly good Apple pin looked like a
+     typo. W and S mean negative. */
+  const dm = t.match(/(-?\d{1,3}(?:\.\d+)?)\s*°?\s*([NS])\s*[,\s]\s*(-?\d{1,3}(?:\.\d+)?)\s*°?\s*([EW])/i);
+  if(dm){
+    let lat = parseFloat(dm[1]), lon = parseFloat(dm[3]);
+    if(/s/i.test(dm[2])) lat = -Math.abs(lat); else lat = Math.abs(lat);
+    if(/w/i.test(dm[4])) lon = -Math.abs(lon); else lon = Math.abs(lon);
+    if(Math.abs(lat) <= 90 && Math.abs(lon) <= 180) return { lat, lon };
+  }
+
+  // Plain pair. Decimals required so a street number and ZIP can't match.
   const pair = t.match(/^\s*(-?\d{1,3}\.\d{3,})\s*[,\s]\s*(-?\d{1,3}\.\d{3,})\s*$/);
   if(pair){
     const lat = parseFloat(pair[1]), lon = parseFloat(pair[2]);
