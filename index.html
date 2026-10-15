@@ -1830,9 +1830,12 @@ details.hsec{scroll-margin-top:8px;}
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8A5A00" stroke-width="2.2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
       <span>This job isn't on the map — the address couldn't be found.</span>
     </div>
-    <div class="hint" style="margin-top:0;">OpenStreetMap doesn't have every house. Look it up in Google, copy the pin's coordinates, and paste them back here — or just tap it on our map.</div>
+    <div class="hint" style="margin-top:0;">OpenStreetMap doesn't have every house. Look it up in <b>Google or Apple</b> — whichever finds it — copy the pin's coordinates, and paste them back here. Or just tap it on our map.</div>
+    <div class="map-nav-row" style="margin-bottom:6px;">
+      <a class="g" id="cdGoogleSearch" target="_blank" rel="noopener" href="#">1. Find in Google</a>
+      <a class="a" id="cdAppleSearch" target="_blank" rel="noopener" href="#">1. Find in Apple</a>
+    </div>
     <div class="map-nav-row" style="margin-bottom:10px;">
-      <a class="g" id="cdGoogleSearch" target="_blank" rel="noopener" href="#">1. Find in Google Maps</a>
       <a href="#" onclick="pasteCoordsForJob();return false;">2. Paste coordinates</a>
       <a href="#" onclick="startJobPicker();return false;">or pick it on our map</a>
     </div>
@@ -3992,8 +3995,13 @@ function renderClientTimeline(){
     const addr = clientAddresses[currentClientName] || '';
     const located = addr && geocache[mapNorm(addr)] && geocache[mapNorm(addr)].lat;
     placeWrap.style.display = (addr && !located) ? 'block' : 'none';
+    /* Both offered on purpose: one often has a house the other doesn't,
+       and Apple is easier to copy a pin from on an iPhone. */
+    const q = encodeURIComponent(addr);
     const g = document.getElementById('cdGoogleSearch');
-    if(g) g.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addr);
+    if(g) g.href = 'https://www.google.com/maps/search/?api=1&query=' + q;
+    const a2 = document.getElementById('cdAppleSearch');
+    if(a2) a2.href = 'https://maps.apple.com/?q=' + q;
   }
 
   const toolWrap = document.getElementById('cdTools');
