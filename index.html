@@ -1268,6 +1268,10 @@ details.hsec{scroll-margin-top:8px;}
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
         Shop
       </button>
+      <button class="map-btn" onclick="mapFitAll()">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/></svg>
+        Fit all
+      </button>
       <button class="map-btn" id="mapRefreshBtn" onclick="mapRefresh()">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><polyline points="21 3 21 9 15 9"/></svg>
         Refresh
@@ -2439,7 +2443,12 @@ details.hsec{scroll-margin-top:8px;}
   <div class="field">
     <label>Flag tools left on a job after</label>
     <input id="supToolDays" type="number" min="1" step="1">
-    <div class="hint">Days. Tools turn around faster than drying equipment, so this is separate from the equipment day colours. Past this, the tool and its job show red.</div>
+    <div class="hint">Days. The shop-wide limit for tools — 5 by default. Past this, the tool and its job show <b>red</b>. A single tool can override it on its own edit screen. Equipment is unaffected.</div>
+  </div>
+  <div class="field">
+    <label>Warn me this many days early</label>
+    <input id="supToolCushion" type="number" min="0" step="1">
+    <div class="hint">The map pin and the tool go <b>amber</b> this many days before the limit, so you get a nudge before anything is actually overdue. 0 means no early warning.</div>
   </div>
   <div class="field">
     <label>Warn me when stock is within</label>
@@ -2471,6 +2480,11 @@ details.hsec{scroll-margin-top:8px;}
     <input id="conName" placeholder="Type the name" style="margin-top:8px;display:none;">
   </div>
   <div class="hint" id="conCodeNote" style="margin-bottom:14px;"></div>
+  <div class="field" id="conFlagWrap">
+    <label>Flag if left on a job after</label>
+    <input id="conFlagDays" type="number" min="1" step="1" placeholder="Shop default">
+    <div class="hint">Days. Blank uses the shop-wide setting. Only applies to loadouts — a ladder might be 2 days while a buffer is a week.</div>
+  </div>
   <div class="field">
     <label>Counted in</label>
     <input list="conUnitList" id="conUnit" placeholder="e.g. boxes, rolls, each">
@@ -4028,7 +4042,7 @@ function renderClientTimeline(){
         tools.map(t=>`<div class="team-row">
             <div class="nm"><div class="avatar" style="background:var(--tools-pin);color:var(--tools-pin-ink);">${initials(t.name)}</div>${escapeHtml(t.name)}</div>
             <span style="font-weight:800;">${t.qty} <span style="font-weight:500;color:var(--muted);font-size:11.5px;">${escapeHtml(t.unit||'')}</span>
-              ${t.days !== null ? `<span class="badge ${t.overdue ? 'overdue' : t.days > 1 ? 'maintenance' : 'shop'}" style="margin-left:6px;">Day ${t.days}</span>` : ''}</span>
+              ${t.days !== null ? `<span class="badge ${t.overdue ? 'overdue' : t.warn ? 'maintenance' : 'shop'}" style="margin-left:6px;" title="Limit ${t.limit} days">Day ${t.days} of ${t.limit}</span>` : ''}</span>
           </div>`).join('') +
         `<div class="btn-row" style="margin-top:8px;gap:8px;">
            <button class="btn btn-ghost" onclick="bringBackFromJob()">Bring these back</button>
@@ -4190,6 +4204,7 @@ function ageLevel(it){
   if(isOverdue(it)) return 'red';           // past its return date, whatever its age
   const d = daysOut(it);
   if(d === null) return 'green';            // no checkout date recorded
+
   if(d <= AGE_GREEN_MAX)  return 'green';
   if(d <= AGE_YELLOW_MAX) return 'amber';
   return 'red';
@@ -5807,6 +5822,10 @@ let geocache = {};                  // "normalized address" -> {lat,lon} or null
 let backendSupportsGeocache = true;
 let mapObj = null, mapMarkers = null, mapMeMarker = null;
 let mapLeafletPromise = null, mapGeocoding = false, mapFirstOpen = true;
+/* Signature of the points the view was last fitted to. Re-fitting only
+   when this changes means the map re-frames itself as pins resolve, but
+   leaves your zoom alone once nothing is moving. */
+let mapLastFitKey = '';
 let mapTileLayer = null, mapTileIsDark = null;
 let myPosition = null;              // {lat, lon} once the user allows it
 
@@ -6012,9 +6031,27 @@ function allToolsOutCount(){
    around faster than drying equipment — poles and a buffer are usually a
    day or two — so this is separate from the equipment thresholds, and
    lives in Settings so the shop can change it. */
-function toolOverdueDays(){
+/* Tools get two thresholds, and only tools — equipment keeps its own
+   green/amber/red timing untouched.
+
+     cushion  the map goes amber this many days BEFORE the limit, as a
+              heads-up that something is about to run long
+     limit    the day it counts as overdue and goes red
+
+   The limit is 5 days shop-wide unless a particular tool carries its own
+   number, set on that tool's edit screen. */
+function toolOverdueDays(toolName){
+  if(toolName){
+    const c = consumables.find(x=>x.name === toolName);
+    const own = c && parseInt(c.flagDays, 10);
+    if(own && own > 0) return own;
+  }
   const n = parseInt(appSettings.toolOverdueDays, 10);
-  return isNaN(n) ? 3 : Math.max(1, n);
+  return isNaN(n) ? 5 : Math.max(1, n);
+}
+function toolWarnCushion(){
+  const n = parseInt(appSettings.toolWarnCushion, 10);
+  return isNaN(n) ? 1 : Math.max(0, n);
 }
 
 function jobToolsOut(name){
@@ -6040,7 +6077,11 @@ function jobToolsOut(name){
     .filter(r=>r.qty > 0)
     .map(r=>{
       const days = r.since ? Math.max(0, Math.floor((Date.now() - new Date(r.since)) / 86400000)) : null;
-      return { ...r, days, overdue: days !== null && days > toolOverdueDays() };
+      const limit = toolOverdueDays(r.name);
+      const warnAt = Math.max(1, limit - toolWarnCushion());
+      return { ...r, days, limit, warnAt,
+               warn:    days !== null && days >= warnAt && days <= limit,
+               overdue: days !== null && days > limit };
     })
     .sort((a,b)=>a.name.localeCompare(b.name));
 }
@@ -6074,6 +6115,7 @@ function mapGroups(){
     g[name].toolCount = tools.reduce((n,t)=>n + t.qty, 0);
     // A tool sitting too long makes the pin red, same as overdue equipment.
     g[name].overdue += tools.filter(t=>t.overdue).length;
+    g[name].toolWarn = tools.some(t=>t.warn);   // amber heads-up, not yet overdue
   });
 
   return Object.values(g);
@@ -6314,8 +6356,13 @@ async function renderMap(){
 
   // Only auto-fit when there's more than the shop to show, and never let the
   // "you are here" dot drag the view away from the yard.
-  if(mapFirstOpen && bounds.length>1){
-    mapObj.fitBounds(bounds,{padding:[40,40],maxZoom:15});
+  /* Geocoding is asynchronous, so on an early open the pins often aren't
+     resolved yet. Fitting only on the FIRST open left the map sitting on
+     the shop with jobs off screen and no way back. */
+  const fitKey = bounds.map(b=>b.map(n=>(+n).toFixed(4)).join()).sort().join('|');
+  if(bounds.length > 1 && fitKey !== mapLastFitKey){
+    mapObj.fitBounds(bounds, { padding:[40,40], maxZoom:15 });
+    mapLastFitKey = fitKey;
   }
   mapFirstOpen = false;
   mapObj.invalidateSize();   // WebKit needs this once the tab becomes visible
@@ -6558,6 +6605,13 @@ function mapEnableTwoFingerGestures(canvas){
    loose match on "1439 E Breezy Ct" once put a Phoenix job in Florida,
    and no amount of refreshing fixed it, because as far as the cache was
    concerned that address was already solved. */
+/* Frames everything currently plotted — the escape hatch when the view
+   has drifted or you've zoomed into one job. */
+function mapFitAll(){
+  mapLastFitKey = '';
+  renderMap();
+}
+
 function mapRefresh(){
   let dropped = 0;
   Object.keys(geocache).forEach(k=>{
@@ -6812,7 +6866,8 @@ function setConFilter(f){
 function openSupplies(){
   document.getElementById('supDefaultMin').value  = conDefaultMin();
   document.getElementById('supWarnBuffer').value  = conWarnBuffer();
-  document.getElementById('supToolDays').value   = toolOverdueDays();
+  document.getElementById('supToolDays').value    = toolOverdueDays();
+  document.getElementById('supToolCushion').value = toolWarnCushion();
   // Always opens collapsed. The screen is for moving materials; the
   // stock list is there when you ask for it.
   conStockOpen = false;
@@ -6824,7 +6879,8 @@ function openSupplies(){
 async function saveSupplySettings(){
   appSettings.conDefaultMin = String(Math.max(0, parseInt(document.getElementById('supDefaultMin').value,10) || 0));
   appSettings.conWarnBuffer = String(Math.max(0, parseInt(document.getElementById('supWarnBuffer').value,10) || 0));
-  appSettings.toolOverdueDays = String(Math.max(1, parseInt(document.getElementById('supToolDays').value,10) || 3));
+  appSettings.toolOverdueDays = String(Math.max(1, parseInt(document.getElementById('supToolDays').value,10) || 5));
+  appSettings.toolWarnCushion = String(Math.max(0, parseInt(document.getElementById('supToolCushion').value,10) || 0));
   const ok = await saveSettingsChecked();
   renderConsumables();
   if(ok) showToast('Reorder levels saved');
@@ -7293,6 +7349,8 @@ function setConTrack(on){
   document.getElementById('conTrackOn').classList.toggle('active', conTrackOn);
   document.getElementById('conTrackOff').classList.toggle('active', !conTrackOn);
   document.getElementById('conMinWrap').style.display = conTrackOn ? 'block' : 'none';
+  const flagWrap = document.getElementById('conFlagWrap');
+  if(flagWrap) flagWrap.style.display = (conFormCat === 'loadout') ? 'block' : 'none';
   document.getElementById('conNoTrackNote').style.display = conTrackOn ? 'none' : 'block';
 }
 
@@ -7301,6 +7359,8 @@ function setConCat(cat){
   conFormCat = cat === 'loadout' ? 'loadout' : 'consumable';
   document.getElementById('conCatCons').classList.toggle('active', conFormCat==='consumable');
   document.getElementById('conCatLoad').classList.toggle('active', conFormCat==='loadout');
+  const fw = document.getElementById('conFlagWrap');
+  if(fw) fw.style.display = (conFormCat === 'loadout') ? 'block' : 'none';
   fillSupplyDropdown(null);
 }
 /* Remembers whether the form was opened from Settings, so Save returns
@@ -7314,6 +7374,7 @@ function openAddConsumable(cat){
   document.getElementById('conFormTitle').textContent = 'Add supply';
   document.getElementById('conName').value = '';
   document.getElementById('conUnit').value = '';
+  document.getElementById('conFlagDays').value = '';
   document.getElementById('conCodeNote').textContent =
     'Barcodes are set up in Settings \u2192 Consumables, once the supply is saved.';
   fillSupplyDropdown(null);
@@ -7331,6 +7392,7 @@ function openEditConsumable(id){
   document.getElementById('conFormTitle').textContent = 'Edit item';
   fillSupplyDropdown(c.name||'');
   document.getElementById('conUnit').value = c.unit||'';
+  document.getElementById('conFlagDays').value = c.flagDays ? String(c.flagDays) : '';
   const codes = supplyCodes(c);
   document.getElementById('conCodeNote').textContent = codes.length
     ? `Scans from ${codes.length} code${codes.length!==1?'s':''} \u2014 manage them in Settings \u2192 Consumables.`
@@ -7349,12 +7411,15 @@ async function confirmSaveConsumable(){
     ? Math.max(0, parseInt(document.getElementById('conMinQty').value,10) || 0)
     : -1;                                  // -1 = no reorder alerts
   const unit = document.getElementById('conUnit').value.trim();
+  const fdRaw = parseInt(document.getElementById('conFlagDays').value, 10);
+  const flagDays = (!isNaN(fdRaw) && fdRaw > 0) ? fdRaw : null;
 
 
   if(editingConsumableId){
     const c = consumables.find(x=>x.id===editingConsumableId);
     if(c){
       c.name=name; c.qty=qty; c.minQty=minQty; c.unit=unit; c.cat=conFormCat;
+      if(flagDays) c.flagDays = flagDays; else delete c.flagDays;
     }   // codes are managed in Settings, so they're left alone here
   } else {
     const dup = consumables.some(c=>c.name.toLowerCase()===name.toLowerCase());
@@ -7363,6 +7428,7 @@ async function confirmSaveConsumable(){
       id: 'CON-' + String(Date.now()).slice(-8),
       cat: conFormCat,
       name, qty, minQty, unit, barcodes: [], orderedQty: 0,
+      ...(flagDays ? { flagDays } : {}),
       created: new Date().toISOString()
     });
   }
