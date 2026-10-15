@@ -2250,6 +2250,10 @@ details.hsec{scroll-margin-top:8px;}
       <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
       <div class="t">Team</div><div class="d">Add or remove personnel</div>
     </button>
+    <button class="quick-btn" id="installTile" onclick="offerInstallAgain()">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m8 11 4 4 4-4"/><rect x="3" y="17" width="18" height="4" rx="1"/></svg></div>
+      <div class="t">Add to home screen</div><div class="d" id="installTileSub">Open it like an app</div>
+    </button>
     <button class="quick-btn" onclick="closeModal('modalSettings');openCodeManager()">
       <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5v14M7 5v14M11 5v14M15 5v14M19 5v14"/></svg></div>
       <div class="t">Consumables</div><div class="d">Barcodes &amp; UPCs for supplies</div>
@@ -2802,6 +2806,7 @@ function shopAddress(){
 }
 
 function openSettings(){
+  if(typeof syncInstallTile === 'function') syncInstallTile();
   document.getElementById('setShopAddress').value = shopAddress();
   document.getElementById('setShopLat').value = appSettings.shopLat || '';
   document.getElementById('setShopLon').value = appSettings.shopLon || '';
@@ -5689,6 +5694,37 @@ function installInstructions(){
   }
   return step(1,'Open the browser menu','The three dots, usually top right.')
        + step(2,'Choose "Install app" or "Add to Home screen"','It appears near the top of the menu.');
+}
+
+/* Settings route back in. Someone who dismissed the prompt — or tapped
+   "Don't show again" on a bad day — needs a way to ask for it, and
+   someone setting up a new tech's phone needs it on demand. */
+function offerInstallAgain(){
+  if(isStandalone()){
+    showToast("It's already installed on this device");
+    return;
+  }
+  try{
+    localStorage.removeItem(INSTALL_NEVER);
+    localStorage.removeItem(INSTALL_COUNT);
+  }catch(e){}
+  askedThisSession = false;
+  closeModal('modalSettings');
+  setTimeout(maybeOfferInstall, SHEET_CLOSE_MS + 20);
+}
+
+/* Keeps the Settings tile honest about the current state. */
+function syncInstallTile(){
+  const tile = document.getElementById('installTile');
+  const sub  = document.getElementById('installTileSub');
+  if(!tile || !sub) return;
+  if(isStandalone()){
+    sub.textContent = 'Already installed on this device';
+    tile.style.opacity = '0.6';
+  } else {
+    sub.textContent = 'Open it like an app';
+    tile.style.opacity = '';
+  }
 }
 
 function maybeOfferInstall(){
