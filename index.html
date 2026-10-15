@@ -3415,6 +3415,18 @@ async function editClientAddress(){
 function openEditClient(){
   attachAddressSuggest('ecAddress');
   syncCoordsField();
+  /* Keep whatever is pinned visible while the address is retyped, rather
+     than blanking it the moment the text stops matching. */
+  const ab = document.getElementById('ecAddress');
+  if(ab && !ab.dataset.pinWatch){
+    ab.dataset.pinWatch = '1';
+    ab.addEventListener('input', ()=>{
+      const hint = document.getElementById('ecCoordsHint');
+      const cur = (document.getElementById('ecCoords').value||'').trim();
+      if(hint && cur) hint.textContent =
+        'This pin will move with the address when you save, so correcting the text above is safe.';
+    });
+  }
   if(!currentClientName) return;
   document.getElementById('ecClientName').textContent = currentClientName;
   document.getElementById('ecName').value = currentClientName;
@@ -3482,7 +3494,17 @@ async function confirmEditClient(){
     currentClientName = newName;
   }
 
-  if(address !== (clientAddresses[currentClientName]||'')){
+  /* Pins are stored against the address text, so correcting a typo — or
+     replacing coordinates that were pasted into the address box — would
+     otherwise orphan the pin and the job would go back to "address not
+     found". Carry it across to the new address. */
+  const prevAddress = clientAddresses[currentClientName] || '';
+  if(address !== prevAddress){
+    const oldPin = prevAddress ? geocache[mapNorm(prevAddress)] : null;
+    if(!pin && oldPin && oldPin.lat !== undefined){
+      pin = { lat: +oldPin.lat, lon: +oldPin.lon };
+    }
+    if(prevAddress) delete geocache[mapNorm(prevAddress)];
     clientAddresses[currentClientName] = address;
     await saveClientAddresses();
   }
