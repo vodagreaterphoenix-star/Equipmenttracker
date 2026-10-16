@@ -1566,7 +1566,31 @@ details.hsec{scroll-margin-top:8px;}
         There's also a warning buffer at the bottom of the screen: set it to 2 and something with a reorder point of 5 starts flagging at 7, giving you lead time.</div>
     </details>
 
-    <details class="hstep"><summary><span class="n">7</span><span class="t">Logging and receiving an order</span></summary>
+    <details class="hstep"><summary><span class="n">7</span><span class="t">Tools out on a job</span></summary>
+      <div class="hbody">Send a tool to a job — from <b>Send out</b>, or from the <b>Tools &amp; supplies</b> section when you load a job kit — and it stays tracked until someone brings it back.<br><br>
+        It shows on the job, on the map with a tool count, and on the home screen. A job holding only tools still counts as <b>Active</b>, because our ladder is still on their driveway.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">8</span><span class="t">How long a tool has been out</span></summary>
+      <div class="hbody">Each tool on a job carries a badge like <b>Day 3 of 5</b> — how long it's been there, and the limit.<br><br>
+        <b>Grey</b> — fine.<br>
+        <b>Amber</b> — inside the warning cushion, so it's about to run long.<br>
+        <b>Red</b> — past the limit. The job's map pin turns red too.<br><br>
+        The clock starts when it first goes out and resets when it all comes back, so a second trip starts at Day 0.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">9</span><span class="t">Setting the tool limits</span></summary>
+      <div class="hbody">Consumables → scroll to <b>Reorder levels</b>.<br><br>
+        <b>Flag tools left on a job after</b> — the shop-wide limit, 5 days by default.<br>
+        <b>Warn me this many days early</b> — the cushion. Set it to 1 and a 5-day tool goes amber on day 4, red on day 6. Set 0 for no early warning.<br><br>
+        A single tool can override the limit: open that tool, <b>Edit</b>, and set <b>Flag if left on a job after</b>. A ladder might be 2 days while a floor buffer is 7. Blank uses the shop default.<br><br>
+        None of this affects equipment, which keeps its own day colours.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">10</span><span class="t">Bringing tools back, or moving them on</span></summary>
+      <div class="hbody">Open the job and tap <b>Bring these back</b>. It knows which job they're leaving, so you only say where they're going: the shop, a truck, <b>straight to another job</b>, or somewhere else.<br><br>
+        Going job to job does both legs at once — the first job clears, the second shows the tool, and the map pin follows. The shop count doesn't move, because it never passed through the shop.<br><br>
+        <b>Correct</b> is for when the record is wrong: wrong tool sent, or the count is off. Set what's actually on site and the difference is logged as a correction. <b>Clear all tools from this job</b> returns everything in one tap.<br><br>
+        <b>Show what's been recorded</b> lists every movement the app has stored for that job, if a number ever looks wrong.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">11</span><span class="t">Logging and receiving an order</span></summary>
       <div class="hbody"><b>Log order</b> records how many are coming without changing your count, so nobody orders it twice. When it lands, <b>Receive</b> adds it to the shelf and clears the order. <b>Cancel order</b> is there for when a supplier can't fill it.</div>
     </details>
   </div></details>
@@ -1611,36 +1635,44 @@ details.hsec{scroll-margin-top:8px;}
       <div class="hbody">Use <b>two fingers</b> to pan and pinch. One finger scrolls the page, so the map doesn't trap your thumb while you're trying to get past it. On a computer, drag with the mouse and zoom with the wheel.</div>
     </details>
 
-    <details class="hstep"><summary><span class="n">4</span><span class="t">Finding what's nearest</span></summary>
+    <details class="hstep"><summary><span class="n">4</span><span class="t">Fit all, Shop and Refresh</span></summary>
+      <div class="hbody"><b>Fit all</b> frames everything currently on the map — use it after zooming into one job. <b>Shop</b> snaps back to the yard. <b>Refresh</b> re-looks-up any address that failed and clears a pin that turned out to be nowhere near the shop.<br><br>The map also re-frames itself as pins resolve, so a job that appears a moment after you open the tab will pull the view out to include it.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">5</span><span class="t">Finding what's nearest</span></summary>
       <div class="hbody">Tap <b>My location</b> and allow the prompt. Job sites are then listed nearest first with distances — useful when you need two more air movers and want to know whether the closest are on a finishing job or back at the shop.<br><br>Location needs permission, same as the camera. Denied it by accident? Same place in your browser settings.</div>
     </details>
 
-    <details class="hstep"><summary><span class="n">5</span><span class="t">Filtering by type</span></summary>
+    <details class="hstep"><summary><span class="n">6</span><span class="t">Filtering by type</span></summary>
       <div class="hbody">The chips above the map filter the pins. Tap Air Mover to see only those; tap Air Scrubber as well to see both. Tap All to clear. The counts update as you filter.</div>
     </details>
 
-    <details class="hstep"><summary><span class="n">6</span><span class="t">The list underneath</span></summary>
+    <details class="hstep"><summary><span class="n">7</span><span class="t">The list underneath</span></summary>
       <div class="hbody">Switch between <b>By location</b> — each job with its equipment grouped by type — and <b>By equipment</b> — each type and everywhere it's sitting. The first answers "what's at this job", the second answers "where are my dehus".</div>
     </details>
 
-    <details class="hstep"><summary><span class="n">7</span><span class="t">If a job isn't on the map</span></summary>
+    <details class="hstep"><summary><span class="n">8</span><span class="t">If a job isn't on the map</span></summary>
       <div class="hbody">The banner above the map names the job and says whether no address is saved or the address couldn't be found.<br><br>Our map data comes from OpenStreetMap, which is volunteer-built. It doesn't have every house — new builds especially — so an address Google knows perfectly well can be missing here. That's not a fault in the app.</div>
     </details>
-    <details class="hstep"><summary><span class="n">8</span><span class="t">Placing an address the map can't find</span></summary>
-      <div class="hbody"><b>Keep the street address in the address box.</b> That's what navigation uses and what's written on the front of the house. Coordinates only tell our map where to draw the pin — they never replace the address.<br><br>Open the job and the amber banner gives you three numbered options.</div>
+    <details class="hstep"><summary><span class="n">9</span><span class="t">Placing an address the map can't find</span></summary>
+      <div class="hbody"><b>Keep the street address in the address box.</b> That's what Apple, Google and Waze navigate to, and what's on the front of the house. Coordinates only tell our own map where to draw the pin. Paste them into the address box by mistake and the app moves them to the right field and asks for the street address.<br><br>
+        The job's amber banner offers <b>Find in Google</b> and <b>Find in Apple</b> — try whichever finds it, they don't always agree — then <b>Paste coordinates</b>, or pick it on our map.<br><br>
+        The header then shows the street address with <b>Pinned: 33.82161, -112.05017</b> quietly underneath.</div>
     </details>
-    <details class="hstep"><summary><span class="n">9</span><span class="t">Getting coordinates on an iPhone</span></summary>
+    <details class="hstep"><summary><span class="n">10</span><span class="t">Editing or clearing a pin</span></summary>
+      <div class="hbody">Open the job, tap the edit pencil, and there's a <b>Pinned location</b> field under the address, with Google and Apple lookup links beside it. <b>Clear pin</b> removes it so the address is looked up again on the next Refresh.<br><br>Correcting the address text is safe — the pin moves with it.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">11</span><span class="t">Getting coordinates on an iPhone</span></summary>
       <div class="hbody"><b>Google Maps app:</b> search the address, then press and hold the exact spot until a red pin drops. The coordinates appear in the search bar at the top — tap them, then tap <b>Copy</b>.<br><br>
         <b>Apple Maps:</b> press and hold to drop a pin, swipe the card up, and the coordinates are near the bottom. Press and hold to copy.<br><br>
         Back here, tap <b>2. Paste coordinates</b> on the job's banner. If Safari asks permission to read the clipboard, allow it — or paste into the box it offers instead.</div>
     </details>
-    <details class="hstep"><summary><span class="n">10</span><span class="t">Getting coordinates on Android</span></summary>
+    <details class="hstep"><summary><span class="n">12</span><span class="t">Getting coordinates on Android</span></summary>
       <div class="hbody"><b>Google Maps app:</b> search the address, press and hold the exact spot to drop a pin, then swipe up on the card at the bottom. The coordinates are listed there — tap them to copy.<br><br>Back here, tap <b>2. Paste coordinates</b> on the job's banner.</div>
     </details>
-    <details class="hstep"><summary><span class="n">11</span><span class="t">Or just tap it on our map</span></summary>
+    <details class="hstep"><summary><span class="n">13</span><span class="t">Or just tap it on our map</span></summary>
       <div class="hbody">Open the job and tap <b>or pick it on our map</b>, then tap where the house is. Ten seconds, no copying, works at the roadside. Saves for everyone, so nobody does it twice.</div>
     </details>
-    <details class="hstep"><summary><span class="n">12</span><span class="t">Why navigation still works</span></summary>
+    <details class="hstep"><summary><span class="n">14</span><span class="t">Why navigation still works</span></summary>
       <div class="hbody">Apple, Google and Waze are all sent the <b>street address</b>, never the coordinates — so a tech gets the same turn-by-turn they'd get typing it themselves, and arrives at a house with a number on it. Coordinates only position the pin on our own map.</div>
     </details>
   </div></details>
@@ -1694,7 +1726,10 @@ details.hsec{scroll-margin-top:8px;}
     <details class="hstep"><summary><span class="n">2</span><span class="t">The shop address</span></summary>
       <div class="hbody">Gear icon → the address at the top. Change it here and it updates for everyone on every device. If the map pin lands on the wrong building, use <b>Pick on map</b> and tap your actual yard — that always works, even when an address won't look up.</div>
     </details>
-    <details class="hstep"><summary><span class="n">3</span><span class="t">Everything syncs</span></summary>
+    <details class="hstep"><summary><span class="n">3</span><span class="t">Add to home screen, any time</span></summary>
+      <div class="hbody">Gear icon → <b>Add to home screen</b>. Brings the install prompt back even if it was dismissed or switched off — handy when setting up a new tech's phone. It dims and says so if the app is already installed.</div>
+    </details>
+    <details class="hstep"><summary><span class="n">4</span><span class="t">Everything syncs</span></summary>
       <div class="hbody">Every change writes to the shop's shared records straight away, and other phones pick it up within about 20 seconds. Two people can work at once. What doesn't sync is your light/dark choice, which stays on your own device.</div>
     </details>
   </div></details>
@@ -1709,7 +1744,10 @@ details.hsec{scroll-margin-top:8px;}
     <div class="help-bullet"><b>Loadout</b> — a tool that rides on the truck and comes back.</div>
     <div class="help-bullet"><b>Reorder point</b> — the number that triggers LOW STOCK for a supply.</div>
     <div class="help-bullet"><b>Day count</b> — days since checkout. Drives the green / yellow / red stripe.</div>
-    <div class="help-bullet"><b>Overdue</b> — past the return date set at checkout.</div>
+    <div class="help-bullet"><b>Overdue</b> — equipment past the return date set at checkout, or a tool past its day limit.</div>
+    <div class="help-bullet"><b>Tool limit</b> — days a tool can sit on a job before it shows red. 5 shop-wide, or set per tool.</div>
+    <div class="help-bullet"><b>Cushion</b> — how many days early a tool turns amber, as a heads-up.</div>
+    <div class="help-bullet"><b>Pinned location</b> — coordinates that place a job on our map when its address can't be found. Navigation still uses the address.</div>
   </div>
 
   <div class="hint" style="margin-top:4px;">Something this guide doesn't cover? Ask your manager — this is the day-to-day, not every edge case.</div>
@@ -4052,7 +4090,7 @@ function renderClientTimeline(){
            <button class="btn btn-ghost" style="color:var(--red);" onclick="clearToolsFromJob()">Clear all tools from this job</button>
          </div>
          <details class="hstep" style="margin-top:8px;">
-           <summary><span class="n">?</span><span class="t">Show what's been recorded</span></summary>
+           <summary><span class="n">1</span><span class="t">Show what's been recorded</span></summary>
            <div class="hbody">${toolHistoryHtml(currentClientName)}</div>
          </details>`
       : '';
@@ -4503,9 +4541,9 @@ function renderReports(){
       <div style="flex:1;">
         <div class="type-report-name">${t}</div>
         <div class="type-report-stats">
-          <div class="type-report-stat"><span class="n">${d.total}</span><span class="l">Total</span></div>
-          <div class="type-report-stat"><span class="n">${d.shop}</span><span class="l">In shop</span></div>
-          <div class="type-report-stat"><span class="n">${d.job}</span><span class="l">On jobs</span></div>
+          <div class="type-report-stat"><span class="n">2</span><span class="l">Total</span></div>
+          <div class="type-report-stat"><span class="n">3</span><span class="l">In shop</span></div>
+          <div class="type-report-stat"><span class="n">4</span><span class="l">On jobs</span></div>
         </div>
       </div>
     </div>`;
