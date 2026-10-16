@@ -423,7 +423,24 @@ nav.bottom .navbtn.scanbtn{color:var(--cyan-dark);}
 .sheet::-webkit-scrollbar-thumb:hover{background:var(--gray);background-clip:content-box;}
 .sheet{scrollbar-width:thin;scrollbar-color:var(--line) transparent;}
 @keyframes slideup{from{transform:translateY(30px);opacity:0;}to{transform:translateY(0);opacity:1;}}
-.sheet-handle{width:38px;height:4px;background:var(--line);border-radius:99px;margin:10px auto 6px;}
+/* The grab bar. The visible line is 4px, which no thumb can hit, so the
+   element itself is a 34px-tall strip with the line centred inside it.
+   touch-action:none stops the browser treating the drag as a scroll. */
+.sheet-handle{
+  height:34px;margin:0 auto;cursor:grab;
+  display:flex;align-items:center;justify-content:center;
+  touch-action:none;-webkit-tap-highlight-color:transparent;
+  position:relative;z-index:3;
+}
+.sheet-handle::before{
+  content:'';width:38px;height:4px;border-radius:99px;background:var(--line);
+  transition:background .15s, width .15s;
+}
+.sheet-handle:active::before{background:var(--gray);width:48px;}
+/* While a sheet is being dragged it must not animate — the transform is
+   following a thumb, frame by frame. */
+.sheet.dragging{animation:none !important;transition:none !important;}
+.sheet.snapback{transition:transform .18s ease-out;}
 .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:6px 0 12px;}
 .sheet-title{font-size:16.5px;font-weight:800;}
 .sheet-sub{font-size:12px;color:var(--muted);margin-top:2px;}
@@ -5815,6 +5832,83 @@ async function runInstall(){
    two of load. Wait for it, then offer whichever we can. */
 setTimeout(()=>{ if(!isStandalone() && !installAlreadyOffered()) maybeOfferInstall(); }, 2500);
 /* ===== END INSTALL PROMPT (JAVASCRIPT) ===== */
+
+/* ===== BEGIN SWIPE-DOWN TO DISMISS ==================================
+   Dragging the handle at the top of a sheet pulls it down and lets go of
+   it — the gesture people already expect from a bottom sheet.
+
+   Deliberately limited to the handle. The sheets scroll, and listening
+   anywhere else would mean fighting the scroll gesture and guessing
+   whether a downward swipe meant "scroll up" or "close". The handle is
+   unambiguous, so there's nothing to guess.
+
+   The camera is excluded: flicking it shut mid-scan would be worse than
+   not having the gesture at all.
+   =================================================================== */
+(function(){
+  const CLOSE_PX = 110;      // past this, let go of it
+  const FLICK_V  = 0.55;     // or a fast flick, px per ms
+  let sheet = null, overlay = null;
+  let startY = 0, lastY = 0, lastT = 0, dy = 0;
+
+  function onStart(e){
+    const handle = e.target.closest('.sheet-handle');
+    if(!handle) return;
+    const ov = handle.closest('.overlay');
+    if(!ov || ov.id === 'modalScan') return;     // never the camera
+    sheet = handle.closest('.sheet');
+    overlay = ov;
+    const t = e.touches ? e.touches[0] : e;
+    startY = lastY = t.clientY;
+    lastT = Date.now();
+    dy = 0;
+    sheet.classList.add('dragging');
+    sheet.classList.remove('snapback');
+  }
+
+  function onMove(e){
+    if(!sheet) return;
+    const t = e.touches ? e.touches[0] : e;
+    dy = Math.max(0, t.clientY - startY);        // downward only
+    lastY = t.clientY; lastT = Date.now();
+    sheet.style.transform = `translateY(${dy}px)`;
+    // Fade the backdrop in step, so the sheet feels attached to it.
+    overlay.style.background = `rgba(10,20,30,${Math.max(0, 0.45 * (1 - dy / 400))})`;
+    if(e.cancelable) e.preventDefault();
+  }
+
+  function onEnd(){
+    if(!sheet) return;
+    const elapsed = Math.max(1, Date.now() - lastT);
+    const velocity = dy / Math.max(1, elapsed + 16);
+    const go = dy > CLOSE_PX || velocity > FLICK_V;
+    const el = sheet, ov = overlay;
+    sheet = null; overlay = null;
+
+    el.classList.remove('dragging');
+    if(go){
+      el.style.transform = '';
+      ov.style.background = '';
+      if(ov.id === 'modalScan') closeScan(); else closeModal(ov.id);
+    } else {
+      // Not far enough — spring back.
+      el.classList.add('snapback');
+      el.style.transform = '';
+      ov.style.background = '';
+      setTimeout(()=>el.classList.remove('snapback'), 200);
+    }
+  }
+
+  document.addEventListener('touchstart', onStart, { passive:true });
+  document.addEventListener('touchmove',  onMove,  { passive:false });
+  document.addEventListener('touchend',   onEnd);
+  document.addEventListener('touchcancel',onEnd);
+  // Mouse too, so it behaves the same on a desktop.
+  document.addEventListener('mousedown', onStart);
+  document.addEventListener('mousemove', e=>{ if(sheet) onMove(e); });
+  document.addEventListener('mouseup', onEnd);
+})();
+/* ===== END SWIPE-DOWN TO DISMISS ===== */
 
 /* ============ INIT ============ */
 initTheme();
